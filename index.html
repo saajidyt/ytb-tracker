@@ -321,6 +321,7 @@ const store = {
 };
 const isAdmin = () => S.me && (S.me.role === "admin" || S.me.role === "owner");
 const isOwner = () => S.me && S.me.role === "owner";
+const isSuper = () => !!(S.me && S.me.super);
 const initials = n => { const p = String(n).trim().split(/\s+/); return ((p[0] || "?")[0] + (p[1] ? p[1][0] : (p[0] || "?")[1] || "")).toUpperCase(); };
 
 // ================================================================ theme
@@ -394,7 +395,7 @@ $("#loginForm").addEventListener("submit", async e => {
   $("#loginErr").textContent = ""; $("#loginBtn").disabled = true; $("#loginBtn").textContent = "Signing in…";
   try {
     const r = await api("login", { name, password: $("#lpw").value });
-    S.token = r.token; S.me = { name: r.name, role: r.role };
+    S.token = r.token; S.me = { name: r.name, role: r.role, super: !!r.super };
     store.set("ytb_token", r.token);
     $("#lpw").value = "";
     S.view = isAdmin() ? "admin" : "board";
@@ -418,6 +419,7 @@ function renderHeader() {
   const views = [["board", "Board"], ["table", "Table"]];
   if (isAdmin()) views.push(["admin", "Admin dashboard"]);
   if (isOwner()) views.push(["access", "Access"]);
+  if (isSuper()) views.push(["settings", "Settings"]);
   $("#nav").innerHTML = views.map(([k, l]) => `<button data-v="${k}" class="${S.view === k ? "on" : ""}">${l}</button>`).join("");
   $("#nav").querySelectorAll("button").forEach(b => b.onclick = () => go(b.dataset.v));
   const T = S.tasks;
@@ -427,7 +429,7 @@ function renderHeader() {
   $("#kpis").innerHTML = k.map(([n, l, c, p]) => `<button class="kpi" data-p="${p}"><b style="color:${c}">${n}</b><span>${l}</span></button>`).join("");
   $("#kpis").querySelectorAll(".kpi").forEach(b => b.onclick = () => openPreset(b.dataset.p));
   $("#meAv").textContent = initials(S.me ? S.me.name : "?");
-  $("#meMenu").innerHTML = `<div class="who"><b>${esc(S.me?.name)}</b><small>${esc(S.me?.role === "member" ? "Team member" : S.me?.role)}</small></div>
+  $("#meMenu").innerHTML = `<div class="who"><b>${esc(S.me?.name)}</b><small>${esc(S.me?.role === "member" ? "Team member" : S.me?.super ? "Main owner" : S.me?.role)}</small></div>
     ${isAdmin() ? `<button id="mPw">Change my password</button>` : ""}
     <button id="mOut">Sign out</button>`;
   if ($("#mPw")) $("#mPw").onclick = () => { $("#meMenu").classList.add("hidden"); openPasswordModal(); };
@@ -440,11 +442,12 @@ function openPreset(p) {
   go("table", true);
 }
 function go(v, keepFilters) {
-  if ((v === "admin" && !isAdmin()) || (v === "access" && !isOwner())) v = "board";
+  if ((v === "admin" && !isAdmin()) || (v === "access" && !isOwner()) || (v === "settings" && !isSuper())) v = "board";
   S.view = v;
   if (!keepFilters) S.f.preset = "";
   window.scrollTo(0, 0); S.anim = true; render();
   if (v === "access" && !S.users) loadUsers();
+  if (v === "settings") loadSettings();
 }
 
 // ================================================================ render
@@ -456,6 +459,7 @@ function render() {
   if (S.anim) { void view.offsetWidth; view.classList.add("enter"); S.anim = false; }
   if (S.view === "admin") { $("#toolbar").classList.add("hidden"); return renderAdmin(); }
   if (S.view === "access") { $("#toolbar").classList.add("hidden"); return renderAccess(); }
+  if (S.view === "settings") { $("#toolbar").classList.add("hidden"); return renderSettings(); }
   renderToolbar();
   if (S.view === "table") renderTable(); else renderBoard();
 }
@@ -641,7 +645,7 @@ function renderAdmin() {
 
 // ---------------------------------------------------------------- access (owner)
 async function loadUsers() {
-  try { const r = await api("users"); S.users = r.users; S.qcKey = r.qcKey; if (S.view === "access") renderAccess(); }
+  try { const r = await api("users"); S.users = r.users; if (S.view === "access") renderAccess(); }
   catch (e) { toast(e.message, true); }
 }
 function renderAccess() {
@@ -649,16 +653,16 @@ function renderAccess() {
   const U = S.users;
   $("#view").innerHTML = `
     <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:14px;flex-wrap:wrap"><h1 class="grot" style="margin:0;font-size:22px">Access</h1>
-      <span class="note">Only owners see this page. Admins can open the Admin dashboard; the team password opens the Board and Table.</span></div>
+      <span class="note">Owners manage who can open the Admin dashboard here. Team password, lists and other settings are on ${isSuper() ? "the Settings page" : "the main owner's Settings page"}.</span></div>
     <div class="access">
       <div class="panel full"><div class="panel-h">Admins & owners <small>people who sign in with their own name and password</small></div>
         ${U ? `<div class="tbl-wrap"><table><thead><tr><th>Name</th><th>Access</th><th>Added</th><th></th></tr></thead><tbody>
           ${U.map(u => `<tr><td><span class="av" style="margin-right:8px">${initials(u.name)}</span><b style="font-weight:600">${esc(u.name)}</b>${u.name.toLowerCase() === S.me.name.toLowerCase() ? ` <span class="note">(you)</span>` : ""}</td>
-            <td><span class="role ${u.role}">${u.role === "owner" ? "Owner · dashboard + access" : "Admin · dashboard"}</span></td><td class="note">${esc(u.added)}</td>
+            <td><span class="role ${u.role}">${u.super ? "Main owner · everything" : u.role === "owner" ? "Owner · dashboard + access" : "Admin · dashboard"}</span></td><td class="note">${esc(u.added)}</td>
             <td style="text-align:right;display:flex;gap:6px;justify-content:flex-end">
-              <button class="btn small" data-act="reset" data-u="${esc(u.name)}">Set password</button>
+              ${u.super ? `<span class="note">Protected</span>` : `<button class="btn small" data-act="reset" data-u="${esc(u.name)}">Set password</button>
               <button class="btn small" data-act="role" data-u="${esc(u.name)}" data-r="${u.role === "owner" ? "admin" : "owner"}">${u.role === "owner" ? "Make admin" : "Make owner"}</button>
-              <button class="btn small danger" data-act="remove" data-u="${esc(u.name)}">Remove</button></td></tr>`).join("")}
+              <button class="btn small danger" data-act="remove" data-u="${esc(u.name)}">Remove</button>`}</td></tr>`).join("")}
           </tbody></table></div>` : `<div class="pad note">Loading…</div>`}
         <form class="pad row-form" id="addUser" style="border-top:1px solid var(--line)">
           <div class="field"><label for="nuName">Name</label><input class="input" id="nuName" placeholder="e.g. Deepak" autocomplete="off"></div>
@@ -668,13 +672,6 @@ function renderAccess() {
           <div class="err" id="nuErr" style="flex-basis:100%"></div>
         </form></div>
 
-      <div class="panel"><div class="panel-h">Team password <small>for editors and everyone else</small></div>
-        <form class="pad stack" id="teamPw">
-          <div class="note">Everyone signs in on the <b>Team</b> tab with this one password. Changing it signs nobody out right away, but new sign-ins need the new password.</div>
-          <div class="field"><label for="tpw">New team password</label><input class="input" id="tpw" type="text" autocomplete="off"></div>
-          <div class="row-form"><button class="btn primary">Change team password</button><span class="err" id="tpErr"></span><span class="ok-msg" id="tpOk"></span></div>
-        </form></div>
-
       <div class="panel"><div class="panel-h">My password</div>
         <form class="pad stack" id="myPw">
           <div class="field"><label for="mp1">Current password</label><input class="input" id="mp1" type="password" autocomplete="current-password"></div>
@@ -682,11 +679,6 @@ function renderAccess() {
           <div class="row-form"><button class="btn primary">Change my password</button><span class="err" id="mpErr"></span><span class="ok-msg" id="mpOk"></span></div>
         </form></div>
 
-      <div class="panel full"><div class="panel-h">QC tool key <small>lets the QC tool write QC results into the tracker</small></div>
-        <div class="pad stack">
-          <div class="keybox"><code id="qcKey">${esc(S.qcKey || "…")}</code><button class="btn small" id="copyKey">Copy</button><button class="btn small danger" id="rotKey">Make a new key</button></div>
-          <div class="note">Put this key in the QC tool's settings. Making a new key stops the old one working straight away.</div>
-        </div></div>
     </div>`;
   document.querySelectorAll("[data-act]").forEach(b => b.onclick = () => userAction(b));
   $("#addUser").onsubmit = async e => {
@@ -694,9 +686,100 @@ function renderAccess() {
     try { const r = await api("saveUser", { user: $("#nuName").value.trim(), role: $("#nuRole").value, password: $("#nuPw").value });
       S.users = r.users; toast("Added " + $("#nuName").value.trim()); renderAccess(); } catch (err) { $("#nuErr").textContent = err.message; }
   };
+  $("#myPw").onsubmit = async e => {
+    e.preventDefault(); $("#mpErr").textContent = $("#mpOk").textContent = "";
+    try { await api("changeMyPassword", { oldPassword: $("#mp1").value, newPassword: $("#mp2").value }); $("#mp1").value = $("#mp2").value = ""; $("#mpOk").textContent = "Your password is changed."; }
+    catch (err) { $("#mpErr").textContent = err.message; }
+  };
+}
+// ---------------------------------------------------------------- settings (main owner only)
+async function loadSettings() {
+  try { const r = await api("settings"); S.settings = r; S.draft = null; if (S.view === "settings") renderSettings(); }
+  catch (e) { toast(e.message, true); }
+}
+function renderSettings() {
+  if (!isSuper()) return go("board");
+  const st = S.settings;
+  if (!st) { $("#view").innerHTML = `<div class="loading">Loading settings…</div>`; return; }
+  if (!S.draft) S.draft = { channels: st.channels.map(c => ({ name: c.name, formats: c.formats.slice() })), assigners: st.assigners.slice() };
+  const D = S.draft, formats = st.formats && st.formats.length ? st.formats : ["Long Form", "Short Form"];
+  const dirty = JSON.stringify(D) !== JSON.stringify({ channels: st.channels, assigners: st.assigners });
+  $("#view").innerHTML = `
+    <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:14px;flex-wrap:wrap"><h1 class="grot" style="margin:0;font-size:22px">Settings</h1>
+      <span class="note">Only you can see this page. Changes apply to the website and the Google Sheet straight away.</span></div>
+    <div class="access">
+      <div class="panel"><div class="panel-h">Team password <small>the one password editors sign in with</small></div>
+        <form class="pad stack" id="teamPw">
+          <div class="field"><label for="tpw">New team password (6+ characters)</label><input class="input" id="tpw" type="text" autocomplete="off"></div>
+          <div class="row-form"><button class="btn primary">Change team password</button><span class="err" id="tpErr"></span><span class="ok-msg" id="tpOk"></span></div>
+          <div class="note">People already signed in stay in until their session ends. To push everyone out now, use <b>Sign everyone out</b> below.</div>
+        </form></div>
+      <div class="panel"><div class="panel-h">My password</div>
+        <form class="pad stack" id="myPw">
+          <div class="field"><label for="mp1">Current password</label><input class="input" id="mp1" type="password" autocomplete="current-password"></div>
+          <div class="field"><label for="mp2">New password (6+ characters)</label><input class="input" id="mp2" type="password" autocomplete="new-password"></div>
+          <div class="row-form"><button class="btn primary">Change my password</button><span class="err" id="mpErr"></span><span class="ok-msg" id="mpOk"></span></div>
+        </form></div>
+
+      <div class="panel full"><div class="panel-h">Channels &amp; formats <small>the Channel dropdown, and which formats each channel makes</small></div>
+        <div class="tbl-wrap"><table><thead><tr><th style="cursor:default">Channel</th>${formats.map(f => `<th style="cursor:default">${esc(f)}</th>`).join("")}<th style="cursor:default"></th></tr></thead><tbody>
+          ${D.channels.map((c, i) => `<tr><td style="padding:6px 12px"><input class="input" data-ch="${i}" value="${esc(c.name)}" style="height:34px" aria-label="Channel name"></td>
+            ${formats.map(f => `<td><label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" data-chf="${i}" data-f="${esc(f)}" ${c.formats.includes(f) ? "checked" : ""}>${chip("format", f, f === "Short Form" ? "Short" : "Long")}</label></td>`).join("")}
+            <td style="text-align:right"><button class="btn small danger" data-chdel="${i}" aria-label="Remove ${esc(c.name)}">Remove</button></td></tr>`).join("")}
+        </tbody></table></div>
+        <div class="pad row-form" style="border-top:1px solid var(--line)"><button class="btn" id="addCh">+ Add channel</button></div></div>
+
+      <div class="panel"><div class="panel-h">Team leads <small>the "Assigned by" dropdown</small></div>
+        <div class="pad stack" style="gap:8px">
+          ${D.assigners.map((a, i) => `<div class="row-form" style="gap:8px;flex-wrap:nowrap"><input class="input" data-as="${i}" value="${esc(a)}" aria-label="Team lead name"><button class="btn small danger" data-asdel="${i}">Remove</button></div>`).join("")}
+          <div><button class="btn" id="addAs">+ Add team lead</button></div>
+        </div></div>
+
+      <div class="panel"><div class="panel-h">Editors <small>${st.editors.length} tabs in the sheet</small></div>
+        <div class="pad stack">
+          <div style="display:flex;flex-wrap:wrap;gap:6px">${st.editors.map(e => `<span class="tag plain" style="font-size:12px;padding:4px 9px"><span class="av" style="width:18px;height:18px;font-size:9px;margin-right:4px">${initials(e)}</span>${esc(e)}</span>`).join("")}</div>
+          <form class="row-form" id="addEd"><div class="field"><label for="newEd">Add an editor</label><input class="input" id="newEd" placeholder="Full name" autocomplete="off"></div><button class="btn primary">Add editor</button></form>
+          <div class="err" id="edErr"></div>
+          <div class="note">This creates their tab in the sheet with all dropdowns and colours. To rename or remove an editor, rename or delete their tab in the sheet, then use YTB Tracker → Refresh Overview.</div>
+        </div></div>
+
+      <div class="panel full" style="position:sticky;bottom:12px;z-index:5;${dirty ? "" : "display:none"}"><div class="pad row-form" style="justify-content:space-between;align-items:center">
+        <span><b>Unsaved list changes.</b> <span class="note">Saving updates every dropdown and the sheet's colours.</span></span>
+        <span style="display:flex;gap:8px"><button class="btn" id="undoLists">Discard</button><button class="btn primary" id="saveLists">Save lists</button></span></div></div>
+
+      <div class="panel"><div class="panel-h">QC tool key <small>lets the QC tool write QC results</small></div>
+        <div class="pad stack">
+          <div class="keybox"><code id="qcKey">${esc(st.qcKey)}</code><button class="btn small" id="copyKey">Copy</button></div>
+          <div class="row-form"><button class="btn danger" id="rotKey">Make a new key</button></div>
+          <div class="note">A new key stops the old one working straight away; update the QC tool too.</div>
+        </div></div>
+
+      <div class="panel"><div class="panel-h">Security</div>
+        <div class="pad stack">
+          <div class="note">Signs out everyone who is signed in right now, including you. Use it after changing the team password if someone shouldn't have access any more.</div>
+          <div class="row-form"><button class="btn danger" id="signOutAll">Sign everyone out</button></div>
+        </div></div>
+    </div>`;
+
+  const redraw = () => { const y = window.scrollY; renderSettings(); window.scrollTo(0, y); };
+  document.querySelectorAll("[data-ch]").forEach(i => i.oninput = () => { D.channels[+i.dataset.ch].name = i.value; });
+  document.querySelectorAll("[data-ch]").forEach(i => i.onchange = redraw);
+  document.querySelectorAll("[data-chf]").forEach(cb => cb.onchange = () => { const c = D.channels[+cb.dataset.chf]; c.formats = formats.filter(f => f === cb.dataset.f ? cb.checked : c.formats.includes(f)); redraw(); });
+  document.querySelectorAll("[data-chdel]").forEach(b => b.onclick = () => { D.channels.splice(+b.dataset.chdel, 1); redraw(); });
+  $("#addCh").onclick = () => { D.channels.push({ name: "", formats: [formats[0]] }); redraw(); const ins = document.querySelectorAll("[data-ch]"); ins[ins.length - 1].focus(); };
+  document.querySelectorAll("[data-as]").forEach(i => { i.oninput = () => { D.assigners[+i.dataset.as] = i.value; }; i.onchange = redraw; });
+  document.querySelectorAll("[data-asdel]").forEach(b => b.onclick = () => { D.assigners.splice(+b.dataset.asdel, 1); redraw(); });
+  $("#addAs").onclick = () => { D.assigners.push(""); redraw(); const ins = document.querySelectorAll("[data-as]"); ins[ins.length - 1].focus(); };
+  if ($("#saveLists")) $("#saveLists").onclick = async () => {
+    const b = $("#saveLists"); b.disabled = true; b.textContent = "Saving…";
+    try { const r = await api("saveLists", { channels: D.channels.filter(c => c.name.trim()), assigners: D.assigners.filter(a => a.trim()) });
+      S.settings = r; S.draft = null; toast("Lists saved — dropdowns and colours updated"); await load(true); renderSettings(); }
+    catch (e) { toast(e.message, true); b.disabled = false; b.textContent = "Save lists"; }
+  };
+  if ($("#undoLists")) $("#undoLists").onclick = () => { S.draft = null; redraw(); };
   $("#teamPw").onsubmit = async e => {
     e.preventDefault(); $("#tpErr").textContent = $("#tpOk").textContent = "";
-    try { await api("setTeamPassword", { password: $("#tpw").value }); $("#tpw").value = ""; $("#tpOk").textContent = "Team password changed. Share the new one with the team."; }
+    try { await api("setTeamPassword", { password: $("#tpw").value }); $("#tpw").value = ""; $("#tpOk").textContent = "Changed. Share the new password with the team."; }
     catch (err) { $("#tpErr").textContent = err.message; }
   };
   $("#myPw").onsubmit = async e => {
@@ -704,13 +787,26 @@ function renderAccess() {
     try { await api("changeMyPassword", { oldPassword: $("#mp1").value, newPassword: $("#mp2").value }); $("#mp1").value = $("#mp2").value = ""; $("#mpOk").textContent = "Your password is changed."; }
     catch (err) { $("#mpErr").textContent = err.message; }
   };
-  $("#copyKey").onclick = async () => { try { await navigator.clipboard.writeText(S.qcKey); toast("Key copied"); } catch (e) { toast("Select the key and copy it", true); } };
+  $("#addEd").onsubmit = async e => {
+    e.preventDefault(); $("#edErr").textContent = "";
+    const name = $("#newEd").value.trim(); if (!name) return;
+    const b = $("#addEd button"); b.disabled = true; b.textContent = "Adding…";
+    try { S.settings = await api("addEditor", { editor: name }); S.draft = null; toast(`Added ${name}`); await load(true); renderSettings(); }
+    catch (err) { $("#edErr").textContent = err.message; b.disabled = false; b.textContent = "Add editor"; }
+  };
+  $("#copyKey").onclick = async () => { try { await navigator.clipboard.writeText(st.qcKey); toast("Key copied"); } catch (e) { toast("Select the key and copy it", true); } };
   $("#rotKey").onclick = async () => {
     const b = $("#rotKey");
     if (!b.classList.contains("confirm")) { b.classList.add("confirm"); b.textContent = "Click again to replace the key"; return; }
-    try { const r = await api("rotateQcKey"); S.qcKey = r.qcKey; toast("New QC key made"); renderAccess(); } catch (err) { toast(err.message, true); }
+    try { const r = await api("rotateQcKey"); st.qcKey = r.qcKey; toast("New QC key made"); redraw(); } catch (err) { toast(err.message, true); }
+  };
+  $("#signOutAll").onclick = async () => {
+    const b = $("#signOutAll");
+    if (!b.classList.contains("confirm")) { b.classList.add("confirm"); b.textContent = "Click again: sign everyone out"; return; }
+    try { await api("signOutAll"); logout(true); $("#loginErr").textContent = "Everyone has been signed out. Sign in again to continue."; } catch (err) { toast(err.message, true); }
   };
 }
+
 async function userAction(b) {
   const name = b.dataset.u;
   if (b.dataset.act === "remove") {
@@ -860,16 +956,22 @@ const Demo = (() => {
     if (["Internal review", "Revisions", "Client review", "Approved", "Delivered"].includes(status)) { t.firstDraftDate = addDays(today, Math.min(-1, a + 3)); t.qcResult = status === "Revisions" && rnd() < .6 ? "Failed – fixes needed" : "Passed"; }
     if (status === "Delivered") { t.deliveredDate = addDays(today, Math.min(0, due)); t.finalLink = "https://drive.google.com/"; }
     tasks.push(t); } });
-  let users = [{ name: "Saajid", role: "owner", added: today }, { name: "Deepak", role: "admin", added: today }]; let qcKey = "qc-demo1234567890";
+  let users = [{ name: "Saajid", role: "owner", added: today, super: true }, { name: "Deepak", role: "admin", added: today }]; let qcKey = "qc-demo1234567890";
+  const settingsOut = () => ({ ok: true, qcKey, editors: editors.slice(), formats: lists.formats, assigners: lists.assigners.slice(),
+    channels: lists.clients.map(c => ({ name: c, formats: lists.channelFormats.filter(m => m.channel === c).map(m => m.format) })) });
   let me = null;
   const nextRow = ed => Math.max(4, ...tasks.filter(t => t.editor === ed).map(t => t.row)) + 1;
   return { async handle(action, p) {
     await new Promise(r => setTimeout(r, 120));
-    if (action === "login") { if (!p.password) throw new Error("Enter a password"); me = p.name ? { name: p.name, role: "owner" } : { name: "Team", role: "member" }; return { ok: true, token: "demo", ...me, role: me.role }; }
+    if (action === "login") { if (!p.password) throw new Error("Enter a password"); me = p.name ? { name: p.name, role: "owner", super: true } : { name: "Team", role: "member" }; return { ok: true, token: "demo", ...me }; }
+    if (action === "settings") return settingsOut();
+    if (action === "saveLists") { lists.clients = p.channels.map(c => c.name); lists.assigners = p.assigners.slice(); lists.channelFormats = []; p.channels.forEach(c => c.formats.forEach(f => lists.channelFormats.push({ channel: c.name, format: f }))); return settingsOut(); }
+    if (action === "addEditor") { if (editors.includes(p.editor)) throw new Error("An editor tab with that name already exists"); editors.push(p.editor); return settingsOut(); }
+    if (action === "signOutAll") return { ok: true };
     if (action === "getAll") return { ok: true, editors, lists, tasks: tasks.map(t => ({ ...t })), today, me };
     if (action === "logout") return { ok: true };
     if (action === "add") { tasks.push({ ...p.task, editor: p.editor, row: nextRow(p.editor) }); return { ok: true }; }
-    if (action === "users") return { ok: true, users, qcKey };
+    if (action === "users") return { ok: true, users };
     if (action === "saveUser") { if (!p.user) throw new Error("Name is required"); const u = users.find(x => x.name.toLowerCase() === p.user.toLowerCase());
       if (!u && String(p.password || "").length < 6) throw new Error("Password must be at least 6 characters");
       if (u) u.role = p.role; else users.push({ name: p.user, role: p.role, added: today }); return { ok: true, users }; }
