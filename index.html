@@ -243,6 +243,24 @@
   .kpi b { transition: transform .2s; } .kpi:hover b { transform: scale(1.08); }
   html { transition: background-color .25s; }
   body, .panel, .card, .toolbar, .bigkpi, .modal { transition: background-color .25s, border-color .25s, color .25s; }
+  /* ---------- chart view ---------- */
+  .crow { display: grid; grid-template-columns: 190px 1fr 40px; align-items: center; gap: 12px; padding: 5px 0; }
+  .cname { display: flex; align-items: center; gap: 8px; border: 0; background: none; cursor: pointer; text-align: left; font-weight: 600; padding: 4px; border-radius: 6px; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cname:hover { background: var(--surface2); }
+  .ctrack { display: flex; gap: 2px; height: 26px; align-items: stretch; background: var(--line2); border-radius: 6px; overflow: hidden; }
+  .cseg { border: 0; cursor: pointer; color: #fff; font-size: 11px; font-weight: 700; padding: 0; min-width: 4px; transition: filter .15s, transform .15s; text-shadow: 0 1px 1px rgba(0,0,0,.25); }
+  .cseg:first-child { border-radius: 6px 0 0 6px; } .cseg:last-child { border-radius: 0 6px 6px 0; } .cseg:only-child { border-radius: 6px; }
+  .cseg:hover, .cseg:focus-visible { filter: brightness(1.12); outline: 2px solid var(--text); outline-offset: -2px; }
+  .enter .ctrack { transform-origin: left; animation: grow .6s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--i, 0) * 25ms); }
+  .enter .crow { animation: fadeUp .35s ease both; animation-delay: calc(var(--i, 0) * 25ms); }
+  .ctotal { text-align: right; color: var(--muted); font-weight: 600; }
+  .ctip { position: absolute; z-index: 25; width: 260px; transform: translateY(-100%); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; box-shadow: var(--shadowLg); pointer-events: none; }
+  .matrix td, .matrix th { text-align: center; }
+  .matrix td:first-child, .matrix th:first-child { text-align: left; }
+  .mcell { border: 0; min-width: 34px; height: 26px; border-radius: 6px; font-weight: 700; font-family: "JetBrains Mono", monospace; cursor: pointer; transition: transform .12s; }
+  .mcell:hover { transform: scale(1.08); }
+  @media (max-width: 700px) { .crow { grid-template-columns: 110px 1fr 30px; } }
+
   /* ---------- show / hide password ---------- */
   .pw-wrap { position: relative; display: block; width: 100%; }
   .pw-wrap .input { padding-right: 44px; }
@@ -311,11 +329,14 @@ const S = {
   f: { q: "", format: "", editor: "", client: "", overdue: false, hideDone: true },
   sort: { key: "dueDate", dir: 1 }, modalOpen: false, anim: true, lastSync: null, users: null, qcKey: ""
 };
-const STATUS_DOT = { "Not started": "#9ca3af", "Editing": "#f59e0b", "Internal review": "#8b5cf6", "Revisions": "#f97316", "Client review": "#3b82f6", "Approved": "#10b981", "Delivered": "#059669", "On hold": "#6b7280" };
+const STATUS_DOT = { "Not started": "#94a3b8", "Scripting": "#0e7490", "Editing": "#f59e0b", "Internal review": "#8b5cf6", "Revisions": "#ea580c", "Client review": "#3b82f6", "Approved": "#22c55e", "Delivered": "#047857", "On hold": "#a8a29e" };
+const EXTRA_C = ["#db2777", "#65a30d", "#7c3aed", "#0891b2", "#b45309"];
+const inkOn = hex => { const n = parseInt(hex.slice(1), 16), r = n >> 16 & 255, g = n >> 8 & 255, b = n & 255; return (0.299 * r + 0.587 * g + 0.114 * b) > 150 ? "#111827" : "#ffffff"; };
+const stageColor = st => STATUS_DOT[st] || EXTRA_C[Math.abs([...String(st)].reduce((a, c) => a * 31 + c.charCodeAt(0), 7)) % EXTRA_C.length];
 const PRI_C = { Urgent: "#dc2626", High: "#ea580c", Normal: "#2563eb", Low: "#16a34a" };
 const FMT_C = { "Long Form": "#6366f1", "Short Form": "#db2777" };
 const QC_C = { "Pending": "#d97706", "Passed": "#16a34a", "Failed – fixes needed": "#dc2626" };
-const colorFor = (kind, v) => (kind === "status" ? STATUS_DOT : kind === "priority" ? PRI_C : kind === "format" ? FMT_C : QC_C)[v] || "#6b7280";
+const colorFor = (kind, v) => kind === "status" ? stageColor(v) : ((kind === "priority" ? PRI_C : kind === "format" ? FMT_C : QC_C)[v] || "#6b7280");
 const chip = (kind, v, label) => v ? `<span class="chip" style="--c:${colorFor(kind, v)}">${esc(label || v)}</span>` : "";
 const STATUS_BG = { "Not started": "#e5e7eb", "Editing": "#fef0c7", "Internal review": "#ede9fe", "Revisions": "#ffedd5", "Client review": "#dbeafe", "Approved": "#d1fae5", "Delivered": "#a7f3d0", "On hold": "#d1d5db" };
 const $ = s => document.querySelector(s);
@@ -481,6 +502,7 @@ function filtered() {
   if (f.editor) T = T.filter(t => t.editor === f.editor);
   if (f.client) T = T.filter(t => t.client === f.client);
   if (f.overdue) T = T.filter(isOverdue);
+  if (f.status) T = T.filter(t => t.status === f.status);
   if (f.q) { const q = f.q.toLowerCase(); T = T.filter(t => [t.title, t.client, t.format, t.blocker, t.editor, t.assignedBy].join(" ").toLowerCase().includes(q)); }
   return T;
 }
@@ -499,6 +521,7 @@ function renderToolbar() {
     <button type="button" class="toggle red ${f.overdue ? "on" : ""}" id="fOver">Only overdue (${S.tasks.filter(isOverdue).length})</button>
     ${S.view === "table" ? `<button type="button" class="toggle ${f.hideDone ? "on" : ""}" id="fDone">Hide delivered</button>` : ""}
     ${f.preset && PRESETS[f.preset] ? `<button type="button" class="toggle on" id="fPreset">${PRESETS[f.preset][0]} ✕</button>` : ""}
+    ${f.status ? `<button type="button" class="toggle on" id="fStatus">Stage: ${esc(f.status)} ✕</button>` : ""}
     <span class="spacer"></span><span class="count">${n} video${n === 1 ? "" : "s"}</span>
     <button class="btn primary" id="addBtn">+ Add video</button>`;
   $("#toolbar").querySelectorAll("[data-fmt]").forEach(b => b.onclick = () => { S.f.format = b.dataset.fmt; S.anim = true; render(); });
@@ -508,6 +531,7 @@ function renderToolbar() {
   $("#fOver").onclick = () => { S.f.overdue = !S.f.overdue; S.anim = true; render(); };
   if ($("#fDone")) $("#fDone").onclick = () => { S.f.hideDone = !S.f.hideDone; render(); };
   if ($("#fPreset")) $("#fPreset").onclick = () => { S.f.preset = ""; S.f.overdue = false; render(); };
+  if ($("#fStatus")) $("#fStatus").onclick = () => { S.f.status = ""; render(); };
   $("#addBtn").onclick = () => openTaskModal(null);
 }
 
@@ -524,7 +548,7 @@ function renderBoard() {
     if (s === "Delivered") { cards = cards.filter(deliveredThisMonth); note = "this month"; }
     cards = sortCards(cards);
     return `<section class="col" data-status="${esc(s)}" aria-label="${esc(s)}">
-      <div class="col-h"><span class="cdot" style="background:${STATUS_DOT[s] || "#9ca3af"}"></span><b>${esc(s)}</b><span class="n">${cards.length}</span>${note ? `<small>${note}</small>` : ""}</div>
+      <div class="col-h"><span class="cdot" style="background:${stageColor(s)}"></span><b>${esc(s)}</b><span class="n">${cards.length}</span>${note ? `<small>${note}</small>` : ""}</div>
       ${cards.length ? cards.map(c => cardHTML(c, ci++)).join("") : `<div class="empty-col">Drop a video here</div>`}
     </section>`;
   }).join("")}</div></div>`;
@@ -594,6 +618,7 @@ function renderTable() {
 // ---------------------------------------------------------------- admin dashboard
 function renderAdmin() {
   if (!isAdmin()) return go("board");
+  if (S.adminTab === "chart") return renderChart();
   const T = S.tasks;
   const k = { active: T.filter(isActive).length, soon: T.filter(isDueSoon).length, overdue: T.filter(isOverdue).length,
     review: T.filter(t => t.status === "Client review").length, delivered: T.filter(deliveredThisMonth).length, qc: T.filter(qcFailed).length };
@@ -615,7 +640,7 @@ function renderAdmin() {
   let ki = 0;
   const kp = (val, label, sub, color, p) => `<button class="bigkpi" style="--i:${ki++}" data-p="${p}"><div class="l"><span style="width:7px;height:7px;border-radius:50%;background:${color}"></span>${label}</div><div class="n" style="color:${val && color !== "var(--text)" ? color : "var(--text)"}">${val}</div><div class="s">${sub}</div></button>`;
   $("#view").innerHTML = `
-    <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:14px;flex-wrap:wrap"><h1 class="grot" style="margin:0;font-size:22px">Admin dashboard</h1>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap"><h1 class="grot" style="margin:0;font-size:22px">Admin dashboard</h1>${adminSwitch()}
       <span class="note">${(([y, m, d]) => new Date(y, m - 1, d))(S.today.split("-").map(Number)).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })} · ${S.editors.length} editors · ${S.lastSync ? "synced " + S.lastSync.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}</span></div>
     <div class="grid-kpi">
       ${kp(k.active, "Active", `${longA} long · ${shortA} short`, "var(--accent)", "active")}
@@ -626,8 +651,8 @@ function renderAdmin() {
       ${kp(k.qc, "QC failed", "need fixes", "var(--red)", "qc")}
     </div>
     <div class="panel"><div class="panel-h">Pipeline <small>open videos + delivered this month</small></div>
-      <div class="sbar">${counts.filter(([, c]) => c).map(([s, c]) => `<div title="${esc(s)}: ${c}" style="flex:${c};background:${STATUS_DOT[s] || "#9ca3af"}"></div>`).join("") || `<div style="flex:1;background:var(--chip)"></div>`}</div>
-      <div class="legend">${counts.map(([s, c]) => `<span><i style="background:${STATUS_DOT[s] || "#9ca3af"}"></i>${esc(s)} <b style="color:var(--text)">${c}</b></span>`).join("")}</div></div>
+      <div class="sbar">${counts.filter(([, c]) => c).map(([s, c]) => `<div title="${esc(s)}: ${c}" style="flex:${c};background:${stageColor(s)}"></div>`).join("") || `<div style="flex:1;background:var(--chip)"></div>`}</div>
+      <div class="legend">${counts.map(([s, c]) => `<span><i style="background:${stageColor(s)}"></i>${esc(s)} <b style="color:var(--text)">${c}</b></span>`).join("")}</div></div>
     <div class="two">
       <div class="main panel"><div class="panel-h">Editor workload <small>sorted by overdue · click a name to see their board</small></div>
         <div class="tbl-wrap"><table><thead><tr><th>Editor</th><th>Active load</th><th class="num">Due 48h</th><th class="num">Overdue</th><th class="num">Client review</th><th class="num">Delivered (month)</th><th class="num">QC failed</th><th class="num">Avg rev.</th></tr></thead>
@@ -643,10 +668,83 @@ function renderAdmin() {
           ${chans.length ? `<div class="tbl-wrap"><table><tbody>${chans.map(c => `<tr class="click" data-ch="${esc(c.c)}"><td>${esc(c.c)}</td><td class="num mono">${c.a}</td><td class="num mono">${c.od ? `<span class="tag late">${c.od}</span>` : n(0)}</td><td class="num mono">${n(c.d)}</td></tr>`).join("")}</tbody></table></div>` : `<div class="pad note">No videos yet.</div>`}</div>
       </div>
     </div>`;
+  bindAdminSwitch();
   document.querySelectorAll(".bigkpi").forEach(b => b.onclick = () => openPreset(b.dataset.p));
   document.querySelectorAll("tr[data-ed]").forEach(r => r.onclick = () => { S.f = { q: "", format: "", editor: r.dataset.ed, client: "", overdue: false, hideDone: true }; go("board", true); });
   document.querySelectorAll("tr[data-ch]").forEach(r => r.onclick = () => { S.f = { q: "", format: "", editor: "", client: r.dataset.ch, overdue: false, hideDone: true }; go("board", true); });
   document.querySelectorAll(".att").forEach(a => a.onclick = () => openTaskModal(findTask(a.dataset.key)));
+}
+
+function adminSwitch() {
+  return `<div class="seg" role="tablist" aria-label="Dashboard view" style="margin-left:4px">
+    <button type="button" role="tab" data-at="summary" class="${S.adminTab !== "chart" ? "on" : ""}">Summary</button>
+    <button type="button" role="tab" data-at="chart" class="${S.adminTab === "chart" ? "on" : ""}">Chart view</button></div>`;
+}
+function bindAdminSwitch() { document.querySelectorAll("[data-at]").forEach(b => b.onclick = () => { S.adminTab = b.dataset.at; S.anim = true; render(); }); }
+
+// ---------------------------------------------------------------- chart view: who is doing what
+function renderChart() {
+  const C = S.chartOpt || (S.chartOpt = { format: "", delivered: false, hold: false });
+  const statuses = (S.lists.status && S.lists.status.length ? S.lists.status : Object.keys(STATUS_DOT))
+    .filter(st => (C.delivered || st !== "Delivered") && (C.hold || st !== "On hold"));
+  const inScope = t => (!C.format || t.format === C.format) && statuses.includes(t.status) && (t.status !== "Delivered" || deliveredThisMonth(t));
+  const T = S.tasks.filter(inScope);
+  const rows = S.editors.map(ed => {
+    const mine = T.filter(t => t.editor === ed);
+    return { ed, total: mine.length, segs: statuses.map(st => ({ st, list: mine.filter(t => t.status === st) })) };
+  }).sort((a, b) => b.total - a.total || a.ed.localeCompare(b.ed));
+  const max = Math.max(1, ...rows.map(r => r.total));
+  const totals = statuses.map(st => ({ st, n: T.filter(t => t.status === st).length }));
+  const maxCell = Math.max(1, ...rows.flatMap(r => r.segs.map(x => x.list.length)));
+  const segBtn = (key, val, label) => `<button type="button" data-co="${key}" data-v="${val}" class="${C[key] === val ? "on" : ""}">${label}</button>`;
+
+  $("#view").innerHTML = `
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap"><h1 class="grot" style="margin:0;font-size:22px">Admin dashboard</h1>${adminSwitch()}
+      <span class="note">${T.length} video${T.length === 1 ? "" : "s"} · click any bar to see those videos</span></div>
+    <div class="panel" style="margin-bottom:18px">
+      <div class="filters" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:12px 18px;border-bottom:1px solid var(--line)">
+        <div class="seg" role="group" aria-label="Format">${segBtn("format", "", "All")}${segBtn("format", "Long Form", "Long Form")}${segBtn("format", "Short Form", "Short Form")}</div>
+        <button type="button" class="toggle ${C.delivered ? "on" : ""}" id="coDel">Include delivered this month</button>
+        <button type="button" class="toggle ${C.hold ? "on" : ""}" id="coHold">Include on hold</button>
+      </div>
+      <div class="panel-h" style="border-bottom:0;padding-bottom:4px">Who is doing what <small>videos per editor, split by stage</small></div>
+      <div class="legend" style="padding:6px 18px 14px">${totals.map(x => `<span><i style="background:${stageColor(x.st)}"></i>${esc(x.st)} <b style="color:var(--text)">${x.n}</b></span>`).join("")}</div>
+      <div class="chart" role="img" aria-label="Stacked bars: videos per editor by stage" style="padding:0 18px 18px">
+        ${rows.map((r, i) => `<div class="crow" style="--i:${i}">
+          <button class="cname" data-ed="${esc(r.ed)}" title="Open ${esc(r.ed)}'s board"><span class="av">${initials(r.ed)}</span>${esc(r.ed)}</button>
+          <div class="ctrack">${r.total ? r.segs.filter(x => x.list.length).map(x => `<button class="cseg" data-ed="${esc(r.ed)}" data-st="${esc(x.st)}"
+              style="width:${x.list.length / max * 100}%;background:${stageColor(x.st)};color:${inkOn(stageColor(x.st))};text-shadow:none" aria-label="${esc(r.ed)}: ${x.list.length} in ${esc(x.st)}"
+              data-tip="${esc(JSON.stringify({ ed: r.ed, st: x.st, n: x.list.length, titles: x.list.slice(0, 5).map(t => t.title) }))}">${x.list.length / max > .045 ? x.list.length : ""}</button>`).join("") : `<span class="note" style="padding-left:2px">Nothing in progress</span>`}</div>
+          <span class="ctotal mono">${r.total}</span></div>`).join("")}
+      </div>
+    </div>
+    <div class="panel"><div class="panel-h">Stage × editor <small>exact counts · darker = more videos · click a number to see them</small></div>
+      <div class="tbl-wrap"><table class="matrix"><thead><tr><th style="cursor:default">Editor</th>${statuses.map(st => `<th class="num" style="cursor:default"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${stageColor(st)};margin-right:5px"></span>${esc(st)}</th>`).join("")}<th class="num" style="cursor:default">Total</th></tr></thead>
+      <tbody>${rows.map(r => `<tr><td><b style="font-weight:600">${esc(r.ed)}</b></td>${r.segs.map(x => {
+          const n = x.list.length, a = n ? (0.14 + 0.72 * n / maxCell) : 0;
+          return `<td class="num">${n ? `<button class="mcell" data-ed="${esc(r.ed)}" data-st="${esc(x.st)}" style="background:color-mix(in srgb, var(--accent) ${Math.round(a * 100)}%, transparent);color:${a > .5 ? "#fff" : "var(--text)"}">${n}</button>` : `<span class="zero">·</span>`}</td>`;
+        }).join("")}<td class="num mono"><b>${r.total}</b></td></tr>`).join("")}</tbody></table></div></div>
+    <div class="ctip hidden" id="ctip" role="tooltip"></div>`;
+
+  bindAdminSwitch();
+  document.querySelectorAll("[data-co]").forEach(b => b.onclick = () => { C[b.dataset.co] = b.dataset.v; renderChart(); });
+  $("#coDel").onclick = () => { C.delivered = !C.delivered; renderChart(); };
+  $("#coHold").onclick = () => { C.hold = !C.hold; renderChart(); };
+  const openSlice = (ed, st) => { S.f = { q: "", format: C.format, editor: ed, client: "", overdue: false, hideDone: st !== "Delivered", status: st || "", preset: st === "Delivered" ? "delivered" : "" }; go("table", true); };
+  document.querySelectorAll(".cname").forEach(b => b.onclick = () => { S.f = { q: "", format: C.format, editor: b.dataset.ed, client: "", overdue: false, hideDone: true }; go("board", true); });
+  document.querySelectorAll(".cseg, .mcell").forEach(b => b.onclick = () => openSlice(b.dataset.ed, b.dataset.st));
+  const tip = $("#ctip");
+  document.querySelectorAll(".cseg").forEach(b => {
+    b.onmouseenter = b.onfocus = () => {
+      const d = JSON.parse(b.dataset.tip);
+      tip.innerHTML = `<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><span style="width:9px;height:9px;border-radius:2px;background:${stageColor(d.st)}"></span><b>${esc(d.st)}</b><span class="mono" style="margin-left:auto">${d.n}</span></div>
+        <div class="note" style="margin-bottom:4px">${esc(d.ed)}</div>${d.titles.map(t => `<div style="font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">• ${esc(t)}</div>`).join("")}${d.n > d.titles.length ? `<div class="note">+${d.n - d.titles.length} more</div>` : ""}`;
+      const r = b.getBoundingClientRect();
+      tip.style.left = Math.min(window.innerWidth - 290, r.left + r.width / 2 - 130) + "px"; tip.style.top = (r.top + window.scrollY - 10) + "px";
+      tip.classList.remove("hidden");
+    };
+    b.onmouseleave = b.onblur = () => tip.classList.add("hidden");
+  });
 }
 
 // ---------------------------------------------------------------- access (owner)
@@ -707,9 +805,9 @@ function renderSettings() {
   if (!isSuper()) return go("board");
   const st = S.settings;
   if (!st) { $("#view").innerHTML = `<div class="loading">Loading settings…</div>`; return; }
-  if (!S.draft) S.draft = { channels: st.channels.map(c => ({ name: c.name, formats: c.formats.slice() })), assigners: st.assigners.slice() };
+  if (!S.draft) S.draft = { channels: st.channels.map(c => ({ name: c.name, formats: c.formats.slice() })), assigners: st.assigners.slice(), statuses: (st.statuses || []).slice() };
   const D = S.draft, formats = st.formats && st.formats.length ? st.formats : ["Long Form", "Short Form"];
-  const dirty = JSON.stringify(D) !== JSON.stringify({ channels: st.channels, assigners: st.assigners });
+  const dirty = JSON.stringify(D) !== JSON.stringify({ channels: st.channels, assigners: st.assigners, statuses: st.statuses || [] });
   $("#view").innerHTML = `
     <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:14px;flex-wrap:wrap"><h1 class="grot" style="margin:0;font-size:22px">Settings</h1>
       <span class="note">Only you can see this page. Changes apply to the website and the Google Sheet straight away.</span></div>
@@ -741,6 +839,18 @@ function renderSettings() {
           <div><button class="btn" id="addAs">+ Add team lead</button></div>
         </div></div>
 
+      <div class="panel"><div class="panel-h">Stages <small>the Status dropdown and the board columns, in order</small></div>
+        <div class="pad stack" style="gap:8px">
+          ${D.statuses.map((x, i) => `<div class="row-form" style="gap:6px;flex-wrap:nowrap;align-items:center">
+            <span style="width:10px;height:10px;border-radius:3px;flex:none;background:${stageColor(x)}"></span>
+            <input class="input" data-stg="${i}" value="${esc(x)}" aria-label="Stage name" ${x === "Delivered" ? "readonly title=\"Delivered can't be renamed: the counts rely on it\"" : ""}>
+            <button class="btn small" data-stup="${i}" aria-label="Move up" ${i === 0 ? "disabled" : ""}>↑</button>
+            <button class="btn small" data-stdn="${i}" aria-label="Move down" ${i === D.statuses.length - 1 ? "disabled" : ""}>↓</button>
+            <button class="btn small danger" data-stdel="${i}" ${x === "Delivered" ? "disabled" : ""}>Remove</button></div>`).join("")}
+          <div><button class="btn" id="addStg" ${D.statuses.length >= 11 ? "disabled" : ""}>+ Add stage</button></div>
+          <div class="note">Videos already in a stage you rename or remove keep the old name until someone changes them.</div>
+        </div></div>
+
       <div class="panel"><div class="panel-h">Editors <small>${st.editors.length} tabs in the sheet</small></div>
         <div class="pad stack">
           <div style="display:flex;flex-wrap:wrap;gap:6px">${st.editors.map(e => `<span class="tag plain" style="font-size:12px;padding:4px 9px"><span class="av" style="width:18px;height:18px;font-size:9px;margin-right:4px">${initials(e)}</span>${esc(e)}</span>`).join("")}</div>
@@ -750,7 +860,7 @@ function renderSettings() {
         </div></div>
 
       <div class="panel full" style="position:sticky;bottom:12px;z-index:5;${dirty ? "" : "display:none"}"><div class="pad row-form" style="justify-content:space-between;align-items:center">
-        <span><b>Unsaved list changes.</b> <span class="note">Saving updates every dropdown and the sheet's colours.</span></span>
+        <span><b>Unsaved changes to lists or stages.</b> <span class="note">Saving updates every dropdown and the sheet's colours.</span></span>
         <span style="display:flex;gap:8px"><button class="btn" id="undoLists">Discard</button><button class="btn primary" id="saveLists">Save lists</button></span></div></div>
 
       <div class="panel"><div class="panel-h">QC tool key <small>lets the QC tool write QC results</small></div>
@@ -776,9 +886,15 @@ function renderSettings() {
   document.querySelectorAll("[data-as]").forEach(i => { i.oninput = () => { D.assigners[+i.dataset.as] = i.value; }; i.onchange = redraw; });
   document.querySelectorAll("[data-asdel]").forEach(b => b.onclick = () => { D.assigners.splice(+b.dataset.asdel, 1); redraw(); });
   $("#addAs").onclick = () => { D.assigners.push(""); redraw(); const ins = document.querySelectorAll("[data-as]"); ins[ins.length - 1].focus(); };
+  document.querySelectorAll("[data-stg]").forEach(i => { i.oninput = () => { D.statuses[+i.dataset.stg] = i.value; }; i.onchange = redraw; });
+  const mv = (i, d) => { const a = D.statuses; [a[i], a[i + d]] = [a[i + d], a[i]]; redraw(); };
+  document.querySelectorAll("[data-stup]").forEach(b => b.onclick = () => mv(+b.dataset.stup, -1));
+  document.querySelectorAll("[data-stdn]").forEach(b => b.onclick = () => mv(+b.dataset.stdn, 1));
+  document.querySelectorAll("[data-stdel]").forEach(b => b.onclick = () => { D.statuses.splice(+b.dataset.stdel, 1); redraw(); });
+  $("#addStg").onclick = () => { D.statuses.push(""); redraw(); const ins = document.querySelectorAll("[data-stg]"); ins[ins.length - 1].focus(); };
   if ($("#saveLists")) $("#saveLists").onclick = async () => {
     const b = $("#saveLists"); b.disabled = true; b.textContent = "Saving…";
-    try { const r = await api("saveLists", { channels: D.channels.filter(c => c.name.trim()), assigners: D.assigners.filter(a => a.trim()) });
+    try { const r = await api("saveLists", { channels: D.channels.filter(c => c.name.trim()), assigners: D.assigners.filter(a => a.trim()), statuses: D.statuses.filter(x => x.trim()) });
       S.settings = r; S.draft = null; toast("Lists saved — dropdowns and colours updated"); await load(true); renderSettings(); }
     catch (e) { toast(e.message, true); b.disabled = false; b.textContent = "Save lists"; }
   };
@@ -948,13 +1064,13 @@ const Demo = (() => {
     ["InCred Money (Trading Titans)", "L"], ["How They Made It by Groww", "L"], ["Trading w Groww", "L"], ["Google GDG", "L"], ["Unwired", "L"], ["Unwired", "S"], ["How They Made It by Groww", "S"], ["Groww-Main", "L"],
     ["Onto", "S"], ["Kuvera", "L"], ["Kuvera", "S"], ["Clear Tax", "L"], ["Clear Tax", "S"], ["Azzy", "S"], ["Casting Content", "S"]].map(([channel, f]) => ({ channel, format: f === "L" ? "Long Form" : "Short Form" }));
   const lists = { clients: [...new Set(channelFormats.map(m => m.channel))], assigners: ["Deepak Ranjan Maharana", "Siddhant", "Shadab", "Sunil Patel", "Ganesh Bhatt"], priority: ["Urgent", "High", "Normal", "Low"],
-    status: ["Not started", "Editing", "Internal review", "Revisions", "Client review", "Approved", "Delivered", "On hold"], qc: ["Pending", "Passed", "Failed – fixes needed"], formats: ["Long Form", "Short Form"], channelFormats };
+    status: ["Not started", "Scripting", "Editing", "Internal review", "Revisions", "Client review", "Approved", "Delivered", "On hold"], qc: ["Pending", "Passed", "Failed – fixes needed"], formats: ["Long Form", "Short Form"], channelFormats };
   const titles = ["10 Mistakes First-Time Home Buyers Make", "Full Kitchen Renovation Walkthrough", "SIP vs Lump Sum Explained", "Podcast Ep. 42 — Long-form cut", "iPhone vs Pixel: 6 Months Later",
     "How We Grew to 1M Subscribers", "Weekly Market Recap", "Tax Saving Mistakes to Avoid", "Founder Story: Behind the Brand", "Google I/O Recap for Developers", "Mutual Funds Explained Simply", "Day in the Life of a Pilot"];
   let seed = 11; const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280; const pick = a => a[Math.floor(rnd() * a.length)];
   const today = localISO(new Date()); const tasks = [];
   editors.forEach(ed => { const n = 2 + Math.floor(rnd() * 4); for (let i = 0; i < n; i++) {
-    const status = pick(["Editing", "Editing", "Internal review", "Revisions", "Client review", "Approved", "Delivered", "Delivered", "Not started", "On hold"]);
+    const status = pick(["Scripting", "Editing", "Editing", "Internal review", "Revisions", "Client review", "Approved", "Delivered", "Delivered", "Not started", "On hold"]);
     const a = -Math.floor(rnd() * 14) - 1, due = a + 5 + Math.floor(rnd() * 8); const cf = pick(channelFormats);
     const t = { editor: ed, row: 5 + i, title: pick(titles), client: cf.channel, format: cf.format, assignedBy: pick(lists.assigners), priority: pick(["Urgent", "High", "Normal", "Normal", "Normal", "Low"]),
       assignedDate: addDays(today, a), dueDate: addDays(today, due), firstDraftDate: "", deliveredDate: "", status, revisions: ["Revisions", "Client review", "Approved", "Delivered"].includes(status) ? Math.floor(rnd() * 3) : 0,
@@ -963,7 +1079,7 @@ const Demo = (() => {
     if (status === "Delivered") { t.deliveredDate = addDays(today, Math.min(0, due)); t.finalLink = "https://drive.google.com/"; }
     tasks.push(t); } });
   let users = [{ name: "Saajid", role: "owner", added: today, super: true }, { name: "Deepak", role: "admin", added: today }]; let qcKey = "qc-demo1234567890";
-  const settingsOut = () => ({ ok: true, qcKey, editors: editors.slice(), formats: lists.formats, assigners: lists.assigners.slice(),
+  const settingsOut = () => ({ ok: true, qcKey, editors: editors.slice(), formats: lists.formats, assigners: lists.assigners.slice(), statuses: lists.status.slice(),
     channels: lists.clients.map(c => ({ name: c, formats: lists.channelFormats.filter(m => m.channel === c).map(m => m.format) })) });
   let me = null;
   const nextRow = ed => Math.max(4, ...tasks.filter(t => t.editor === ed).map(t => t.row)) + 1;
@@ -971,7 +1087,7 @@ const Demo = (() => {
     await new Promise(r => setTimeout(r, 120));
     if (action === "login") { if (!p.password) throw new Error("Enter a password"); me = p.name ? { name: p.name, role: "owner", super: true } : { name: "Team", role: "member" }; return { ok: true, token: "demo", ...me }; }
     if (action === "settings") return settingsOut();
-    if (action === "saveLists") { lists.clients = p.channels.map(c => c.name); lists.assigners = p.assigners.slice(); lists.channelFormats = []; p.channels.forEach(c => c.formats.forEach(f => lists.channelFormats.push({ channel: c.name, format: f }))); return settingsOut(); }
+    if (action === "saveLists") { if (p.statuses) lists.status = p.statuses.slice(); lists.clients = p.channels.map(c => c.name); lists.assigners = p.assigners.slice(); lists.channelFormats = []; p.channels.forEach(c => c.formats.forEach(f => lists.channelFormats.push({ channel: c.name, format: f }))); return settingsOut(); }
     if (action === "addEditor") { if (editors.includes(p.editor)) throw new Error("An editor tab with that name already exists"); editors.push(p.editor); return settingsOut(); }
     if (action === "signOutAll") return { ok: true };
     if (action === "getAll") return { ok: true, editors, lists, tasks: tasks.map(t => ({ ...t })), today, me };
