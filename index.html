@@ -243,6 +243,12 @@
   .kpi b { transition: transform .2s; } .kpi:hover b { transform: scale(1.08); }
   html { transition: background-color .25s; }
   body, .panel, .card, .toolbar, .bigkpi, .modal { transition: background-color .25s, border-color .25s, color .25s; }
+  /* ---------- show / hide password ---------- */
+  .pw-wrap { position: relative; display: block; width: 100%; }
+  .pw-wrap .input { padding-right: 44px; }
+  .pw-eye { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 34px; height: 30px; border: 0; background: none; color: var(--muted); cursor: pointer; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; }
+  .pw-eye:hover { color: var(--text); background: var(--surface2); }
+  .pw-eye svg { width: 18px; height: 18px; }
   @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 </style>
 </head>
@@ -397,7 +403,7 @@ $("#loginForm").addEventListener("submit", async e => {
     const r = await api("login", { name, password: $("#lpw").value });
     S.token = r.token; S.me = { name: r.name, role: r.role, super: !!r.super };
     store.set("ytb_token", r.token);
-    $("#lpw").value = "";
+    $("#lpw").value = ""; $("#lpw").type = "password"; const eb = $("#lpw").parentNode.querySelector(".pw-eye"); if (eb) eb.innerHTML = EYE;
     S.view = isAdmin() ? "admin" : "board";
     if (await load()) showApp();
   } catch (err) { $("#loginErr").textContent = err.message === "Failed to fetch" ? "Can't reach the tracker right now." : err.message; }
@@ -985,6 +991,30 @@ const Demo = (() => {
     throw new Error("Unknown action");
   } };
 })();
+
+// ================================================================ show / hide password (eye icon on every password box)
+const EYE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+const EYE_OFF = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 5.1A10.7 10.7 0 0 1 12 5c6.4 0 10 7 10 7a17.6 17.6 0 0 1-3.2 4.2M6.6 6.6C3.9 8.4 2 12 2 12s3.6 7 10 7a9.7 9.7 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>';
+function addEyes(root) {
+  (root || document).querySelectorAll('input[type="password"]:not([data-eye])').forEach(inp => {
+    inp.dataset.eye = "1";
+    const wrap = document.createElement("span"); wrap.className = "pw-wrap";
+    inp.parentNode.insertBefore(wrap, inp); wrap.appendChild(inp);
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "pw-eye"; b.innerHTML = EYE;
+    b.setAttribute("aria-label", "Show password"); b.title = "Show password";
+    b.onclick = () => {
+      const show = inp.type === "password";
+      inp.type = show ? "text" : "password";
+      b.innerHTML = show ? EYE_OFF : EYE;
+      b.setAttribute("aria-label", show ? "Hide password" : "Show password"); b.title = show ? "Hide password" : "Show password";
+      inp.focus(); const n = inp.value.length; try { inp.setSelectionRange(n, n); } catch (e) {}
+    };
+    wrap.appendChild(b);
+  });
+}
+addEyes();
+new MutationObserver(() => addEyes()).observe(document.body, { childList: true, subtree: true });
 
 // ================================================================ start
 (async function start() {
