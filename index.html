@@ -194,34 +194,27 @@
   .backdrop { position: fixed; inset: 0; background: var(--overlay); display: grid; place-items: center; z-index: 30; padding: 16px; }
   .modal { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; width: 760px; max-width: 100%; max-height: 92vh; overflow: auto; box-shadow: var(--shadowLg); }
   .modal.sm { width: 420px; }
-  .modal.tm { width: 680px; }
-  .tm-body { padding: 18px 22px 20px; display: flex; flex-direction: column; gap: 16px; }
-  .tm-title { height: 46px; font-size: 16px; font-weight: 600; }
-  .tm-grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
-  .tm-grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; padding-top: 14px; }
-  .tm-dates { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; padding: 14px; background: var(--chip); border-radius: 10px; }
-  .tm-dates .input { background: var(--surface); padding: 0 8px; }
+  .modal.tm { width: 620px; }
+  .tm-body { padding: 18px 22px 22px; display: flex; flex-direction: column; gap: 14px; }
+  .tm-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 14px; }
+  .tm-grid .full { grid-column: 1 / -1; }
+  .tm-sec { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); border-top: 1px solid var(--line); padding-top: 14px; margin-top: 2px; }
   .field label small { font-weight: 400; }
   .dsel { position: relative; }
-  .dsel i { position: absolute; left: 12px; top: 50%; width: 9px; height: 9px; margin-top: -4.5px; border-radius: 50%; pointer-events: none; }
-  .dsel select { padding-left: 29px; }
-  .sg { display: flex; background: var(--chip); border-radius: 9px; padding: 3px; gap: 2px; height: 38px; }
-  .sg button { flex: 1; border: 0; background: none; border-radius: 7px; font-size: 12.5px; color: var(--text2); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; padding: 0 6px; transition: background .15s, color .15s, box-shadow .15s; }
-  .sg button:hover { color: var(--text); }
-  .sg button.on { background: var(--surface); color: var(--text); font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.12); }
-  .sg button i { width: 7px; height: 7px; border-radius: 50%; }
-  .cobox { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-height: 38px; padding: 4px; border: 1px solid var(--line); border-radius: 8px; }
-  .cochip { display: inline-flex; align-items: center; gap: 5px; background: var(--chip); border-radius: 999px; padding: 3px 4px 3px 10px; font-size: 12.5px; font-weight: 500; }
+  .dsel i { position: absolute; left: 12px; top: 50%; width: 8px; height: 8px; margin-top: -4px; border-radius: 50%; pointer-events: none; }
+  .dsel.has select { padding-left: 28px; }
+  .tm-grid.four { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px 10px; }
+  .tm-grid.four .input { padding: 0 8px; }
+  .cobox { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-height: 38px; padding: 5px 6px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+  .cochip { display: inline-flex; align-items: center; gap: 6px; height: 26px; background: var(--chip); border-radius: 999px; padding: 0 4px 0 10px; font-size: 12.5px; font-weight: 500; }
   .cochip small { font-size: 10px; font-weight: 600; color: #0e7490; }
-  .cochip button { border: 0; background: none; width: 20px; height: 20px; border-radius: 50%; cursor: pointer; color: var(--muted); font-size: 15px; line-height: 1; }
+  .cochip button { border: 0; background: none; width: 18px; height: 18px; border-radius: 50%; cursor: pointer; color: var(--muted); font-size: 14px; line-height: 18px; padding: 0; display: grid; place-items: center; }
   .cochip button:hover { background: var(--line); color: var(--text); }
-  .coadd { border: 0; background: none; color: var(--accent); font-weight: 600; font-size: 12.5px; cursor: pointer; padding: 4px 6px; max-width: 140px; }
-  .tm-more { border-top: 1px solid var(--line); padding-top: 12px; }
-  .tm-more summary { cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text2); list-style: none; display: flex; align-items: center; gap: 6px; }
-  .tm-more summary::-webkit-details-marker { display: none; }
-  .tm-more summary::before { content: "›"; display: inline-block; font-size: 16px; transition: transform .15s; }
-  .tm-more[open] summary::before { transform: rotate(90deg); }
-  @media (max-width: 700px) { .tm-grid3, .tm-dates { grid-template-columns: repeat(2, minmax(0, 1fr)); } .tm-grid3 .field[style] { grid-column: span 2 !important; } }
+  .coadd { height: 26px; border: 1px dashed var(--line); border-radius: 999px; background: none; color: var(--accent); font-weight: 600; font-size: 12.5px; cursor: pointer; padding: 0 12px; appearance: none; -webkit-appearance: none; width: auto; field-sizing: content; max-width: 160px; }
+  .coadd option, .coadd optgroup { color: var(--text); background: var(--surface); font-weight: 400; }
+  .coadd:hover { border-color: var(--accent); }
+  @media (max-width: 640px) { .tm-grid.four { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 560px) { .tm-grid, .tm-grid.four { grid-template-columns: 1fr; } }
   .modal-h { padding: 16px 22px; border-bottom: 1px solid var(--line); display: flex; align-items: center; }
   .modal-h h3 { margin: 0; font-size: 17px; flex: 1; font-family: "Space Grotesk", sans-serif; }
   .x { background: none; border: 0; font-size: 22px; cursor: pointer; color: var(--muted); }
@@ -1128,46 +1121,36 @@ function openTaskModal(t) {
   const v = t || { editor: S.f.editor && S.editors.includes(S.f.editor) ? S.f.editor : "", priority: "Normal", status: "Not started", assignedDate: S.today, revisions: 0, client: S.f.client || "", format: S.f.format || "" };
   const sel = (id, arr, val, ph) => `<select class="input" id="${id}"><option value="">${ph || ""}</option>${(arr || []).map(o => `<option ${o === val ? "selected" : ""}>${esc(o)}</option>`).join("")}${val && !(arr || []).includes(val) ? `<option selected>${esc(val)}</option>` : ""}</select>`;
   const inp = (id, type, val, extra = "") => `<input class="input" id="${id}" type="${type}" value="${esc(val ?? "")}" ${extra}>`;
-  const dsel = (id, kind, arr, val, ph) => `<div class="dsel"><i id="${id}_dot" style="background:${val ? colorFor(kind, val) : "transparent"}"></i>${sel(id, arr, val, ph)}</div>`;
-  const hasMore = !!(v.blocker || v.finalLink || v.qcResult || v.qcReport || Number(v.revisions));
+  const dsel = (id, kind, arr, val, ph) => `<div class="dsel ${val ? "has" : ""}"><i id="${id}_dot" style="background:${val ? colorFor(kind, val) : "transparent"}"></i>${sel(id, arr, val, ph)}</div>`;
   $("#modalRoot").innerHTML = `<div class="backdrop" id="bd"><div class="modal tm" role="dialog" aria-label="${isNew ? "Add video" : "Edit video"}">
     <div class="modal-h"><h3>${isNew ? "Add video" : "Edit video"}</h3><button class="x" id="mx" aria-label="Close">×</button></div>
     <div class="tm-body">
-      <input class="input tm-title" id="m_title" type="text" value="${esc(v.title ?? "")}" placeholder="Video title *" aria-label="Video title">
-
-      <div class="tm-grid3">
+      <div class="field"><label for="m_title">Video title *</label><input class="input" id="m_title" type="text" value="${esc(v.title ?? "")}" placeholder="e.g. Mutual Funds Explained Simply"></div>
+      <div class="tm-grid">
         <div class="field"><label for="m_editor">Main editor *</label>${sel("m_editor", S.editors, v.editor, "Pick editor")}</div>
         <div class="field"><label for="m_client">Channel</label>${sel("m_client", S.lists.clients, v.client, "Pick channel")}</div>
-        <div class="field"><label for="m_assignedBy">Assigned by</label>${sel("m_assignedBy", S.lists.assigners, v.assignedBy, "—")}</div>
+        <div class="field"><label for="m_status">Stage</label>${dsel("m_status", "status", S.lists.status || Object.keys(STATUS_DOT), v.status, "Select")}</div>
+        <div class="field"><label for="m_priority">Priority</label>${dsel("m_priority", "priority", S.lists.priority || Object.keys(PRI_C), v.priority, "Select")}</div>
+        <div class="field"><label for="m_format">Format</label><div id="fmtBox"></div></div>
+        <div class="field"><label for="m_shift">Day slot</label>${dsel("m_shift", "shift", S.lists.shifts && S.lists.shifts.length ? S.lists.shifts : SHIFTS, v.shift, "Select")}</div>
+        <div class="field"><label for="m_assignedBy">Assigned by</label>${sel("m_assignedBy", S.lists.assigners, v.assignedBy, "Select")}</div>
+        <div class="field"><label for="m_revisions">Revisions</label>${inp("m_revisions", "number", v.revisions, 'min="0"')}</div>
+        <div class="field full"><label>Also working on it <small>(optional)</small></label><div class="cobox" id="p_co"></div></div>
       </div>
-
-      <div class="tm-grid3">
-        <div class="field"><label for="m_status">Stage</label>${dsel("m_status", "status", S.lists.status || Object.keys(STATUS_DOT), v.status, "—")}</div>
-        <div class="field"><label>Priority</label><div class="sg" id="p_priority" data-kind="priority"></div></div>
-        <div class="field"><label>Format</label><div class="sg" id="p_format" data-kind="format"></div></div>
-      </div>
-
-      <div class="tm-grid3">
-        <div class="field"><label>Day slot</label><div class="sg" id="p_shift" data-kind="shift"></div></div>
-        <div class="field" style="grid-column:span 2"><label>Also working on it</label><div class="cobox" id="p_co"></div></div>
-      </div>
-
-      <div class="tm-dates">
+      <div class="tm-sec">Dates</div>
+      <div class="tm-grid four">
         <div class="field"><label for="m_assignedDate">Assigned</label>${inp("m_assignedDate", "date", v.assignedDate)}</div>
         <div class="field"><label for="m_dueDate">Due</label>${inp("m_dueDate", "date", v.dueDate)}</div>
         <div class="field"><label for="m_firstDraftDate">First draft</label>${inp("m_firstDraftDate", "date", v.firstDraftDate)}</div>
         <div class="field"><label for="m_deliveredDate">Delivered</label>${inp("m_deliveredDate", "date", v.deliveredDate)}</div>
       </div>
-
-      <details class="tm-more" ${hasMore ? "open" : ""}><summary>Blocker, files &amp; QC</summary>
-        <div class="tm-grid2">
-          <div class="field" style="grid-column:span 2"><label for="m_blocker">Blocker / waiting on</label>${inp("m_blocker", "text", v.blocker, 'placeholder="e.g. Waiting on client feedback"')}</div>
-          <div class="field"><label for="m_finalLink">Final file link</label>${inp("m_finalLink", "url", v.finalLink, 'placeholder="https://drive.google.com/…"')}</div>
-          <div class="field"><label for="m_revisions">Revisions</label>${inp("m_revisions", "number", v.revisions, 'min="0"')}</div>
-          <div class="field"><label for="m_qcResult">QC result <small>(the QC tool fills this)</small></label>${dsel("m_qcResult", "qc", S.lists.qc || Object.keys(QC_C), v.qcResult, "—")}</div>
-          <div class="field"><label for="m_qcReport">QC report link</label>${inp("m_qcReport", "url", v.qcReport, 'placeholder="https://…"')}</div>
-        </div>
-      </details>
+      <div class="tm-sec">Delivery &amp; QC</div>
+      <div class="tm-grid">
+        <div class="field full"><label for="m_blocker">Blocker / waiting on</label>${inp("m_blocker", "text", v.blocker, 'placeholder="e.g. Waiting on client feedback"')}</div>
+        <div class="field full"><label for="m_finalLink">Final file link</label>${inp("m_finalLink", "url", v.finalLink, 'placeholder="https://drive.google.com/…"')}</div>
+        <div class="field"><label for="m_qcResult">QC result</label>${dsel("m_qcResult", "qc", S.lists.qc || Object.keys(QC_C), v.qcResult, "Not checked yet")}</div>
+        <div class="field"><label for="m_qcReport">QC report link</label>${inp("m_qcReport", "url", v.qcReport, 'placeholder="https://…"')}</div>
+      </div>
     </div>
     <div class="modal-f">${isNew ? "" : `<button class="btn danger" id="mdel">Delete</button>`}<span class="err" id="merr" style="flex:1;text-align:right"></span>
       <button class="btn" id="mcancel">Cancel</button><button class="btn primary" id="msave">${isNew ? "Add video" : "Save"}</button></div>
@@ -1177,23 +1160,21 @@ function openTaskModal(t) {
   document.addEventListener("keydown", onKey);
   $("#mx").onclick = close; $("#mcancel").onclick = close; $("#bd").onclick = e => { if (e.target.id === "bd") close(); };
   if (isNew) setTimeout(() => $("#m_title").focus(), 30);
-  const P = { format: v.format || "", priority: v.priority || "", shift: v.shift || "" };
-  // coloured dot follows the stage / QC dropdowns
-  [["m_status", "status"], ["m_qcResult", "qc"]].forEach(([id, kind]) => $("#" + id).addEventListener("change", e => {
-    $("#" + id + "_dot").style.background = e.target.value ? colorFor(kind, e.target.value) : "transparent";
-    if (id === "m_status" && DONE.includes(e.target.value) && !$("#m_deliveredDate").value) $("#m_deliveredDate").value = S.today;
-  }));
-  // segmented pickers (format, priority, day slot): click again to clear
-  const drawSeg = (field, opts) => {
-    const box = $("#p_" + field), kind = box.dataset.kind;
-    box.innerHTML = opts.map(o => `<button type="button" data-v="${esc(o)}" class="${o === P[field] ? "on" : ""}" aria-pressed="${o === P[field]}">${o === P[field] ? `<i style="background:${colorFor(kind, o)}"></i>` : ""}${esc(o.replace(" Form", ""))}</button>`).join("");
-    box.querySelectorAll("button").forEach(b => b.onclick = () => { P[field] = P[field] === b.dataset.v && field !== "priority" ? "" : b.dataset.v; drawSeg(field, opts); });
+  const dot = (id, kind) => { const el = $("#" + id); el.addEventListener("change", () => { $("#" + id + "_dot").style.background = el.value ? colorFor(kind, el.value) : "transparent"; el.parentNode.classList.toggle("has", !!el.value); }); };
+  // Format list follows the channel (only the formats that channel makes)
+  let curFmt = v.format || "";
+  const drawFormat = () => {
+    const opts = formatsFor($("#m_client").value, curFmt);
+    if (!opts.includes(curFmt)) curFmt = "";
+    if (!curFmt && opts.length === 1) curFmt = opts[0];
+    $("#fmtBox").innerHTML = dsel("m_format", "format", opts, curFmt, "Select");
+    dot("m_format", "format");
+    $("#m_format").addEventListener("change", e => curFmt = e.target.value);
   };
-  const drawFormat = () => { const opts = formatsFor($("#m_client").value, P.format); if (!opts.includes(P.format)) P.format = ""; if (!P.format && opts.length === 1) P.format = opts[0]; drawSeg("format", opts); };
   drawFormat();
-  drawSeg("priority", S.lists.priority || Object.keys(PRI_C));
-  drawSeg("shift", S.lists.shifts && S.lists.shifts.length ? S.lists.shifts : SHIFTS);
-  $("#m_client").onchange = () => drawFormat();
+  $("#m_client").onchange = drawFormat;
+  [["m_status", "status"], ["m_priority", "priority"], ["m_shift", "shift"], ["m_qcResult", "qc"]].forEach(([id, k]) => dot(id, k));
+  $("#m_status").addEventListener("change", e => { if (DONE.includes(e.target.value) && !$("#m_deliveredDate").value) $("#m_deliveredDate").value = S.today; });
   // co-workers: chips + one "Add person" dropdown
   let CO = t ? coList(t) : [];
   const drawCo = () => {
@@ -1209,9 +1190,8 @@ function openTaskModal(t) {
   drawCo();
   $("#m_editor").addEventListener("change", drawCo);
   $("#msave").onclick = async () => {
-    const F = ["title", "client", "assignedBy", "status", "assignedDate", "dueDate", "firstDraftDate", "deliveredDate", "revisions", "blocker", "finalLink", "qcResult", "qcReport"];
+    const F = ["title", "client", "format", "priority", "shift", "assignedBy", "status", "assignedDate", "dueDate", "firstDraftDate", "deliveredDate", "revisions", "blocker", "finalLink", "qcResult", "qcReport"];
     const task = {}; F.forEach(k => task[k] = $("#m_" + k).value.trim());
-    Object.assign(task, P);
     task.coEditors = CO.join(", ");
     const editor = $("#m_editor").value;
     if (!task.title) { $("#m_title").focus(); return ($("#merr").textContent = "Add a video title."); }
