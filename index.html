@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>YTB Edits Tracker</title>
+<style>
+  :root {
+    --navy: #1f2a44; --navy2: #2c3b5e; --blue: #3b5ba5; --bg: #f5f6f8; --card: #fff;
+    --line: #e4e7ec; --text: #1d2939; --muted: #667085; --red: #b42318; --redbg: #fde2e1;
+    --orange: #dc6803; --green: #067647; --greenbg: #d1fadf;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, "Segoe UI", Arial, sans-serif; background: var(--bg); color: var(--text); font-size: 14px; }
+  button, input, select, textarea { font: inherit; }
+  .hidden { display: none !important; }
+
+  /* Login */
+  #login { min-height: 100vh; display: grid; place-items: center; }
+  .login-card { background: var(--card); padding: 36px 40px; border-radius: 14px; box-shadow: 0 8px 30px rgba(16,24,40,.08); width: 360px; }
+  .login-card h1 { margin: 0 0 4px; font-size: 22px; color: var(--navy); }
+  .login-card p { margin: 0 0 22px; color: var(--muted); }
+  .login-card input { width: 100%; padding: 11px 12px; border: 1px solid var(--line); border-radius: 8px; margin-bottom: 12px; }
+  .err { color: var(--red); min-height: 18px; font-size: 13px; }
+
+  /* Top bar */
+  header { background: var(--navy); color: #fff; padding: 0 24px; display: flex; align-items: center; gap: 22px; height: 58px; position: sticky; top: 0; z-index: 5; }
+  header .brand { font-weight: 700; font-size: 17px; letter-spacing: .2px; white-space: nowrap; }
+  nav { display: flex; gap: 4px; align-items: center; }
+  nav button { background: none; border: 0; color: #c7d0e3; padding: 8px 12px; border-radius: 7px; cursor: pointer; }
+  nav button.on, nav button:hover { background: var(--navy2); color: #fff; }
+  nav select { background: var(--navy2); color: #fff; border: 0; border-radius: 7px; padding: 8px 10px; cursor: pointer; }
+  header .spacer { flex: 1; }
+  header .sync { color: #9aa6c0; font-size: 12px; white-space: nowrap; }
+  .btn { border: 1px solid var(--line); background: #fff; color: var(--text); padding: 8px 14px; border-radius: 8px; cursor: pointer; white-space: nowrap; }
+  .btn:hover { background: #f9fafb; }
+  .btn.primary { background: var(--blue); border-color: var(--blue); color: #fff; }
+  .btn.primary:hover { background: #324e8f; }
+  .btn.danger { color: var(--red); border-color: #fecdca; }
+  .btn.danger.confirm { background: var(--red); color: #fff; }
+  header .btn { border-color: transparent; }
+  .icon-btn { background: none; border: 0; color: #c7d0e3; cursor: pointer; font-size: 13px; padding: 6px 8px; border-radius: 6px; }
+  .icon-btn:hover { background: var(--navy2); color: #fff; }
+
+  .demo { background: #fef0c7; color: #93370d; text-align: center; padding: 7px; font-size: 13px; }
+  main { padding: 22px 24px 60px; max-width: 1600px; margin: 0 auto; }
+  h2 { margin: 0 0 14px; font-size: 19px; color: var(--navy); }
+  .sub { color: var(--muted); font-size: 13px; margin: -8px 0 16px; }
+
+  /* KPI cards */
+  .kpis { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-bottom: 20px; }
+  .kpi { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; cursor: pointer; }
+  .kpi:hover { border-color: #c7d0e3; }
+  .kpi .n { font-size: 28px; font-weight: 700; margin-top: 4px; }
+  .kpi .l { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .4px; }
+  .kpi.bad .n { color: var(--red); } .kpi.warn .n { color: var(--orange); } .kpi.good .n { color: var(--green); }
+
+  .panel { background: var(--card); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; margin-bottom: 20px; }
+  .panel-h { padding: 12px 16px; border-bottom: 1px solid var(--line); font-weight: 600; display: flex; align-items: center; gap: 10px; }
+
+  /* Status bar */
+  .sbar { display: flex; height: 12px; border-radius: 6px; overflow: hidden; margin: 14px 16px 8px; background: #f2f4f7; }
+  .slegend { display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 0 16px 14px; font-size: 12px; color: var(--muted); }
+  .slegend span i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+
+  /* Tables */
+  .tbl-wrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; }
+  th { background: #f9fafb; color: var(--muted); font-weight: 600; font-size: 12px; text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; position: sticky; top: 0; cursor: pointer; user-select: none; }
+  th.qc { background: #eef2fb; color: var(--blue); }
+  td { padding: 8px 10px; border-bottom: 1px solid #f0f1f4; white-space: nowrap; vertical-align: middle; }
+  tr.click { cursor: pointer; }
+  tr.click:hover td { background: #f9fafb; }
+  tr.overdue td { background: #fff4f3; }
+  tr.overdue:hover td { background: #fde9e7; }
+  tr.done td { color: #98a2b3; }
+  td.num, th.num { text-align: center; }
+  td.title { white-space: normal; min-width: 240px; font-weight: 500; }
+  td.blk { white-space: normal; max-width: 220px; color: var(--muted); font-size: 13px; }
+  td a { color: var(--blue); }
+  .ov-name { color: var(--blue); font-weight: 600; }
+  .bad-n { color: var(--red); font-weight: 700; } .warn-n { color: var(--orange); font-weight: 700; }
+  .zero { color: #c0c5cf; }
+
+  .pill { display: inline-block; padding: 3px 9px; border-radius: 999px; font-size: 12px; font-weight: 500; }
+  .fmt-l { background: #e0eaff; color: #3538cd; } .fmt-s { background: #fce7f6; color: #c11574; }
+  .pri-Urgent { color: var(--red); font-weight: 700; } .pri-High { color: var(--orange); font-weight: 700; } .pri-Low { color: var(--muted); }
+  select.status { border: 0; border-radius: 999px; padding: 4px 8px; font-size: 12px; font-weight: 500; cursor: pointer; }
+  .due-tag { font-size: 11px; font-weight: 600; margin-left: 6px; }
+  .due-tag.od { color: var(--red); } .due-tag.soon { color: var(--orange); }
+
+  /* Filters */
+  .filters { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+  .filters input[type=search] { padding: 8px 11px; border: 1px solid var(--line); border-radius: 8px; width: 240px; }
+  .filters select { padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+  .filters label { color: var(--muted); font-size: 13px; display: flex; align-items: center; gap: 6px; cursor: pointer; }
+  .filters .count { margin-left: auto; color: var(--muted); font-size: 13px; }
+  .empty { padding: 40px; text-align: center; color: var(--muted); }
+
+  /* Modal */
+  .backdrop { position: fixed; inset: 0; background: rgba(16,24,40,.45); display: grid; place-items: center; z-index: 20; }
+  .modal { background: #fff; border-radius: 14px; width: 760px; max-width: 94vw; max-height: 92vh; overflow: auto; box-shadow: 0 20px 50px rgba(0,0,0,.2); }
+  .modal-h { padding: 16px 22px; border-bottom: 1px solid var(--line); display: flex; align-items: center; }
+  .modal-h h3 { margin: 0; font-size: 17px; color: var(--navy); flex: 1; }
+  .modal-h .tid { color: var(--muted); font-size: 13px; margin-right: 12px; }
+  .x { background: none; border: 0; font-size: 22px; cursor: pointer; color: var(--muted); }
+  .form { padding: 18px 22px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px 16px; }
+  .form .f { display: flex; flex-direction: column; gap: 5px; }
+  .form .f.w2 { grid-column: span 2; } .form .f.w4 { grid-column: span 4; }
+  .form label { font-size: 12px; color: var(--muted); font-weight: 600; }
+  .form input, .form select { width: 100%; min-width: 0; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+  .form .sec { grid-column: span 4; font-size: 12px; font-weight: 700; color: var(--blue); text-transform: uppercase; letter-spacing: .5px; margin-top: 4px; border-top: 1px solid var(--line); padding-top: 14px; }
+  .form .sec small { font-weight: 400; text-transform: none; color: var(--muted); letter-spacing: 0; margin-left: 6px; }
+  .modal-f { padding: 14px 22px; border-top: 1px solid var(--line); display: flex; gap: 10px; align-items: center; }
+  .modal-f .spacer { flex: 1; }
+  .modal-f .err { margin-right: 8px; }
+
+  .toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); background: var(--navy); color: #fff; padding: 10px 18px; border-radius: 9px; font-size: 13px; z-index: 30; box-shadow: 0 8px 24px rgba(0,0,0,.2); }
+  .toast.bad { background: var(--red); }
+  .loading { padding: 60px; text-align: center; color: var(--muted); }
+  @media (max-width: 1100px) { .kpis { grid-template-columns: repeat(3, 1fr); } }
+</style>
+</head>
+<body>
+
+<!-- ============ CONFIG: paste your Apps Script web app URL here ============ -->
+<script>
+  const CONFIG = {
+    API_URL: "https://script.google.com/macros/s/AKfycbz15CoqSRPv_c973XwyxylZYteo1WQWeBxHnjNbdSkpJcZdqb2XnUaMSczPAdKyVHpk/exec", // e.g. "https://script.google.com/macros/s/AKfy.../exec"  (leave empty = demo mode)
+    AUTO_REFRESH_SEC: 60  // reload data from the sheet every N seconds
+  };
+</script>
+<!-- ======================================================================== -->
+
+<div id="login" class="hidden">
+  <form class="login-card" id="loginForm">
+    <h1>YTB Edits Tracker</h1>
+    <p>Enter the team password to continue.</p>
+    <input type="password" id="pw" placeholder="Password" autocomplete="current-password" autofocus>
+    <div class="err" id="loginErr"></div>
+    <button class="btn primary" style="width:100%;padding:11px" id="loginBtn">Open tracker</button>
+  </form>
+</div>
+
+<div id="app" class="hidden">
+  <header>
+    <div class="brand">YTB Edits Tracker</div>
+    <nav>
+      <button data-view="overview">Overview</button>
+      <button data-view="all">All videos</button>
+      <select id="editorPick"><option value="">Editor tabs…</option></select>
+    </nav>
+    <div class="spacer"></div>
+    <span class="sync" id="sync"></span>
+    <button class="icon-btn" id="refreshBtn" title="Reload from sheet">↻ Refresh</button>
+    <button class="btn primary" id="addBtn">+ Add video</button>
+    <button class="icon-btn" id="logoutBtn" title="Log out">Log out</button>
+  </header>
+  <div class="demo hidden" id="demoBar">Demo mode — sample data, nothing is saved. Add your Apps Script URL in CONFIG to connect the Google Sheet.</div>
+  <main id="view"><div class="loading">Loading…</div></main>
+</div>
+
+<div id="modalRoot"></div>
+
+<script>
+// ------------------------------------------------------------------ state
+const S = {
+  pw: "", editors: [], lists: {}, tasks: [], today: "", view: "overview", editor: "",
+  filters: { q: "", client: "", format: "", status: "", priority: "", hideDone: true, preset: "" },
+  sort: { key: "dueDate", dir: 1 }, demo: !CONFIG.API_URL, modalOpen: false, lastSync: null
+};
+const STATUS_COLORS = {
+  "Not started": "#eaecf0", "Editing": "#fef0c7", "Internal review": "#e9d7fe", "Revisions": "#fddcab",
+  "Client review": "#d1e9ff", "Approved": "#d1fadf", "Delivered": "#abefc6", "On hold": "#d0d5dd"
+};
+const STATUS_BAR = {
+  "Not started": "#d0d5dd", "Editing": "#fdb022", "Internal review": "#9e77ed", "Revisions": "#f79009",
+  "Client review": "#53b1fd", "Approved": "#32d583", "Delivered": "#079455", "On hold": "#98a2b3"
+};
+const $ = s => document.querySelector(s);
+const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const store = {
+  get(k) { try { return sessionStorage.getItem(k); } catch (e) { return null; } },
+  set(k, v) { try { sessionStorage.setItem(k, v); } catch (e) {} },
+  del(k) { try { sessionStorage.removeItem(k); } catch (e) {} }
+};
+
+// ------------------------------------------------------------------ dates
+function localISO(d) { const z = n => String(n).padStart(2, "0"); return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`; }
+function addDays(iso, n) { const [y, m, d] = iso.split("-").map(Number); return localISO(new Date(y, m - 1, d + n)); }
+function fmtDate(iso) {
+  if (!iso) return "";
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" });
+}
+function dayDiff(a, b) { const p = s => { const [y, m, d] = s.split("-").map(Number); return Date.UTC(y, m - 1, d); }; return Math.round((p(b) - p(a)) / 864e5); }
+
+// ------------------------------------------------------------------ task rules
+const isDone = t => t.status === "Delivered";
+const isActive = t => !isDone(t) && t.status !== "On hold";
+const isOverdue = t => !!t.dueDate && !isDone(t) && t.dueDate < S.today;
+const isDueSoon = t => !!t.dueDate && !isDone(t) && t.dueDate >= S.today && t.dueDate <= addDays(S.today, 2);
+const monthStart = () => S.today.slice(0, 8) + "01";
+const deliveredThisMonth = t => isDone(t) && t.deliveredDate >= monthStart();
+const qcFailed = t => t.qcResult === "Failed – fixes needed";
+
+// ------------------------------------------------------------------ API
+async function api(action, payload = {}) {
+  if (S.demo) return Demo.handle(action, payload);
+  const res = await fetch(CONFIG.API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({ password: S.pw, action, ...payload })
+  });
+  const data = await res.json();
+  if (!data.ok) { const e = new Error(data.error || "Request failed"); e.auth = data.auth === false; throw e; }
+  return data;
+}
+
+async function load(silent) {
+  try {
+    const d = await api("getAll");
+    S.editors = d.editors; S.lists = d.lists; S.tasks = d.tasks; S.today = d.today || localISO(new Date());
+    S.lastSync = new Date();
+    fillEditorPick(); updateSync();
+    if (!S.modalOpen && !(silent && document.activeElement && document.activeElement.id === "fq")) render();
+    return true;
+  } catch (e) {
+    if (e.auth) { logout(); $("#loginErr").textContent = "Wrong password."; return false; }
+    if (!silent) toast(e.message, true);
+    return false;
+  }
+}
+
+function updateSync() {
+  if (!S.lastSync) return;
+  $("#sync").textContent = "Synced " + S.lastSync.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+// ------------------------------------------------------------------ login
+$("#loginForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  $("#loginErr").textContent = "";
+  S.pw = $("#pw").value;
+  $("#loginBtn").disabled = true; $("#loginBtn").textContent = "Checking…";
+  const ok = await load();
+  $("#loginBtn").disabled = false; $("#loginBtn").textContent = "Open tracker";
+  if (ok) { store.set("ytb_pw", S.pw); showApp(); }
+  else if (!$("#loginErr").textContent) $("#loginErr").textContent = "Couldn't reach the tracker. Check the API URL.";
+});
+function showApp() { $("#login").classList.add("hidden"); $("#app").classList.remove("hidden"); render(); }
+function logout() { store.del("ytb_pw"); S.pw = ""; $("#app").classList.add("hidden"); $("#login").classList.remove("hidden"); }
+$("#logoutBtn").onclick = logout;
+$("#refreshBtn").onclick = async () => { $("#sync").textContent = "Syncing…"; if (await load()) toast("Up to date"); };
+$("#addBtn").onclick = () => openModal(null);
+
+// ------------------------------------------------------------------ navigation
+document.querySelectorAll("nav button").forEach(b => b.onclick = () => go(b.dataset.view));
+$("#editorPick").onchange = e => { if (e.target.value) go("editor", e.target.value); };
+function go(view, editor = "", preset = "") {
+  S.view = view; S.editor = editor;
+  S.filters = { q: "", client: "", format: "", status: "", priority: "", hideDone: !preset || preset !== "delivered", preset };
+  window.scrollTo(0, 0); render();
+}
+function fillEditorPick() {
+  const sel = $("#editorPick");
+  sel.innerHTML = `<option value="">Editor tabs…</option>` + S.editors.map(e => `<option>${esc(e)}</option>`).join("");
+  sel.value = S.view === "editor" ? S.editor : "";
+}
+
+// ------------------------------------------------------------------ render
+function render() {
+  document.querySelectorAll("nav button").forEach(b => b.classList.toggle("on", b.dataset.view === S.view));
+  $("#editorPick").value = S.view === "editor" ? S.editor : "";
+  $("#editorPick").style.outline = S.view === "editor" ? "2px solid #6c84c4" : "none";
+  if (S.view === "overview") renderOverview(); else renderVideos();
+}
+
+function renderOverview() {
+  const T = S.tasks;
+  const k = {
+    active: T.filter(isActive).length, soon: T.filter(isDueSoon).length, overdue: T.filter(isOverdue).length,
+    review: T.filter(t => t.status === "Client review").length, delivered: T.filter(deliveredThisMonth).length,
+    qc: T.filter(qcFailed).length
+  };
+  const kpi = (n, l, cls, preset) => `<div class="kpi ${n ? cls : ""}" data-preset="${preset}"><div class="l">${l}</div><div class="n">${n}</div></div>`;
+  const statuses = S.lists.status || Object.keys(STATUS_COLORS);
+  const open = T.filter(t => !isDone(t) || deliveredThisMonth(t));
+  const counts = statuses.map(s => [s, open.filter(t => t.status === s).length]);
+  const total = counts.reduce((a, [, n]) => a + n, 0) || 1;
+
+  const rows = S.editors.map(ed => {
+    const mine = T.filter(t => t.editor === ed);
+    const revs = mine.length ? mine.reduce((a, t) => a + (Number(t.revisions) || 0), 0) / mine.length : 0;
+    return { ed, total: mine.length, active: mine.filter(isActive).length, soon: mine.filter(isDueSoon).length,
+      overdue: mine.filter(isOverdue).length, review: mine.filter(t => t.status === "Client review").length,
+      delivered: mine.filter(deliveredThisMonth).length, qc: mine.filter(qcFailed).length, revs };
+  });
+  const n = (v, cls) => v ? `<span class="${cls || ""}">${v}</span>` : `<span class="zero">0</span>`;
+
+  $("#view").innerHTML = `
+    <h2>Team overview</h2>
+    <div class="sub">${fmtDate(S.today)} · ${S.editors.length} editors · click any number to see the videos behind it</div>
+    <div class="kpis">
+      ${kpi(k.active, "Active videos", "", "active")}
+      ${kpi(k.soon, "Due in 48h", "warn", "soon")}
+      ${kpi(k.overdue, "Overdue", "bad", "overdue")}
+      ${kpi(k.review, "In client review", "", "review")}
+      ${kpi(k.delivered, "Delivered this month", "good", "delivered")}
+      ${kpi(k.qc, "QC failed", "bad", "qc")}
+    </div>
+    <div class="panel">
+      <div class="panel-h">Pipeline <span style="font-weight:400;color:var(--muted);font-size:13px">open videos + delivered this month</span></div>
+      <div class="sbar">${counts.filter(([, c]) => c).map(([s, c]) => `<div title="${esc(s)}: ${c}" style="width:${c / total * 100}%;background:${STATUS_BAR[s] || "#98a2b3"}"></div>`).join("")}</div>
+      <div class="slegend">${counts.map(([s, c]) => `<span><i style="background:${STATUS_BAR[s] || "#98a2b3"}"></i>${esc(s)} <b style="color:var(--text)">${c}</b></span>`).join("")}</div>
+    </div>
+    <div class="panel">
+      <div class="panel-h">Editors</div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Editor</th><th class="num">Total</th><th class="num">Active</th><th class="num">Due in 48h</th><th class="num">Overdue</th><th class="num">Client review</th><th class="num">Delivered this month</th><th class="num">QC failed</th><th class="num">Avg revisions</th></tr></thead>
+        <tbody>${rows.map(r => `<tr class="click" data-ed="${esc(r.ed)}">
+          <td class="ov-name">${esc(r.ed)}</td><td class="num">${n(r.total)}</td><td class="num">${n(r.active)}</td>
+          <td class="num">${n(r.soon, "warn-n")}</td><td class="num">${n(r.overdue, "bad-n")}</td><td class="num">${n(r.review)}</td>
+          <td class="num">${n(r.delivered)}</td><td class="num">${n(r.qc, "bad-n")}</td><td class="num">${r.total ? r.revs.toFixed(1) : '<span class="zero">–</span>'}</td></tr>`).join("")}
+        </tbody></table></div>
+    </div>`;
+  document.querySelectorAll(".kpi").forEach(el => el.onclick = () => go("all", "", el.dataset.preset));
+  document.querySelectorAll("tr[data-ed]").forEach(el => el.onclick = () => go("editor", el.dataset.ed));
+}
+
+const PRESETS = {
+  active: ["Active videos", isActive], soon: ["Due in the next 48 hours", isDueSoon], overdue: ["Overdue", isOverdue],
+  review: ["In client review", t => t.status === "Client review"], delivered: ["Delivered this month", deliveredThisMonth],
+  qc: ["QC failed", qcFailed]
+};
+
+function filtered() {
+  const f = S.filters;
+  let T = S.tasks.filter(t => S.view !== "editor" || t.editor === S.editor);
+  if (f.preset && PRESETS[f.preset]) T = T.filter(PRESETS[f.preset][1]);
+  if (f.hideDone && f.preset !== "delivered") T = T.filter(t => !isDone(t));
+  if (f.client) T = T.filter(t => t.client === f.client);
+  if (f.format) T = T.filter(t => t.format === f.format);
+  if (f.status) T = T.filter(t => t.status === f.status);
+  if (f.priority) T = T.filter(t => t.priority === f.priority);
+  if (f.q) { const q = f.q.toLowerCase(); T = T.filter(t => [t.title, t.client, t.format, t.blocker, t.editor].join(" ").toLowerCase().includes(q)); }
+  const { key, dir } = S.sort;
+  const pri = { Urgent: 0, High: 1, Normal: 2, Low: 3 };
+  return T.sort((a, b) => {
+    let x = a[key] ?? "", y = b[key] ?? "";
+    if (key === "priority") { x = pri[x] ?? 9; y = pri[y] ?? 9; }
+    if (key === "revisions") { x = Number(x) || 0; y = Number(y) || 0; }
+    if (x === "" && y !== "") return 1; if (y === "" && x !== "") return -1;
+    return (x > y ? 1 : x < y ? -1 : 0) * dir;
+  });
+}
+
+function renderVideos() {
+  const f = S.filters, all = S.view === "all";
+  const title = S.view === "editor" ? S.editor : (f.preset && PRESETS[f.preset] ? PRESETS[f.preset][0] : "All videos");
+  const T = filtered();
+  const opt = (arr, v, label) => `<option value="">${label}</option>` + (arr || []).map(o => `<option ${o === v ? "selected" : ""}>${esc(o)}</option>`).join("");
+  const cols = [["title", "Video title"], ...(all ? [["editor", "Editor"]] : []), ["client", "Channel"], ["format", "Format"],
+    ["assignedBy", "Assigned by"], ["priority", "Priority"], ["assignedDate", "Assigned"], ["dueDate", "Due"],
+    ["firstDraftDate", "First draft"], ["deliveredDate", "Delivered"], ["status", "Status"], ["revisions", "Rev."],
+    ["blocker", "Blocker / waiting on"], ["finalLink", "Final file"], ["qcResult", "QC result", "qc"], ["qcReport", "QC report", "qc"]];
+  const arrow = k => S.sort.key === k ? (S.sort.dir > 0 ? " ▲" : " ▼") : "";
+  const link = (u, label) => u ? `<a href="${esc(u)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${label}</a>` : "";
+
+  $("#view").innerHTML = `
+    <h2>${esc(title)}</h2>
+    ${f.preset ? `<div class="sub"><a href="#" id="clearPreset">← clear this filter</a></div>` : ""}
+    <div class="panel">
+      <div class="filters">
+        <input type="search" id="fq" placeholder="Search title, channel, blocker…" value="${esc(f.q)}">
+        <select id="fclient">${opt(S.lists.clients, f.client, "All channels")}</select>
+        <select id="fformat">${opt(S.lists.formats, f.format, "All formats")}</select>
+        <select id="fstatus">${opt(S.lists.status, f.status, "All statuses")}</select>
+        <select id="fpri">${opt(S.lists.priority, f.priority, "All priorities")}</select>
+        <label><input type="checkbox" id="fdone" ${f.hideDone ? "checked" : ""}> Hide delivered</label>
+        <span class="count">${T.length} video${T.length === 1 ? "" : "s"}</span>
+      </div>
+      ${T.length ? `<div class="tbl-wrap"><table>
+        <thead><tr>${cols.map(([k, l, c]) => `<th class="${c || ""} ${k === "revisions" ? "num" : ""}" data-sort="${k}">${l}${arrow(k)}</th>`).join("")}</tr></thead>
+        <tbody>${T.map(t => {
+          const od = isOverdue(t), soon = isDueSoon(t);
+          const dueTag = od ? `<span class="due-tag od">${dayDiff(t.dueDate, S.today)}d late</span>` : soon ? `<span class="due-tag soon">${t.dueDate === S.today ? "today" : "in " + dayDiff(S.today, t.dueDate) + "d"}</span>` : "";
+          const qcStyle = t.qcResult === "Passed" ? "background:#d1fadf" : qcFailed(t) ? "background:#fee4e2" : t.qcResult ? "background:#f2f4f7" : "";
+          return `<tr class="click ${od ? "overdue" : ""} ${isDone(t) ? "done" : ""}" data-key="${esc(t.editor)}|${t.row}">
+            <td class="title">${esc(t.title)}</td>${all ? `<td>${esc(t.editor)}</td>` : ""}
+            <td>${esc(t.client)}</td><td>${t.format ? `<span class="pill fmt-${t.format === "Short Form" ? "s" : "l"}">${esc(t.format)}</span>` : ""}</td><td>${esc(t.assignedBy)}</td><td class="pri-${esc(t.priority)}">${esc(t.priority)}</td>
+            <td>${fmtDate(t.assignedDate)}</td><td>${fmtDate(t.dueDate)}${dueTag}</td><td>${fmtDate(t.firstDraftDate)}</td><td>${fmtDate(t.deliveredDate)}</td>
+            <td onclick="event.stopPropagation()"><select class="status" data-key="${esc(t.editor)}|${t.row}" style="background:${STATUS_COLORS[t.status] || "#f2f4f7"}">
+              ${(S.lists.status || []).map(s => `<option ${s === t.status ? "selected" : ""}>${esc(s)}</option>`).join("")}${t.status ? "" : `<option selected value="">—</option>`}</select></td>
+            <td class="num">${esc(t.revisions)}</td><td class="blk">${esc(t.blocker)}</td><td>${link(t.finalLink, "Open ↗")}</td>
+            <td>${t.qcResult ? `<span class="pill" style="${qcStyle}">${esc(t.qcResult)}</span>` : ""}</td><td>${link(t.qcReport, "Report ↗")}</td></tr>`;
+        }).join("")}</tbody></table></div>` : `<div class="empty">No videos match. ${S.view === "editor" ? "Use “+ Add video” to assign one." : ""}</div>`}
+    </div>`;
+
+  const bind = (id, key, ev = "change", val = el => el.value) => { const el = $(id); el.addEventListener(ev, () => { S.filters[key] = val(el); renderVideos(); if (key === "q") { const i = $("#fq"); i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }); };
+  bind("#fq", "q", "input"); bind("#fclient", "client"); bind("#fformat", "format"); bind("#fstatus", "status"); bind("#fpri", "priority");
+  bind("#fdone", "hideDone", "change", el => el.checked);
+  const cp = $("#clearPreset"); if (cp) cp.onclick = e => { e.preventDefault(); S.filters.preset = ""; renderVideos(); };
+  document.querySelectorAll("th[data-sort]").forEach(th => th.onclick = () => {
+    const k = th.dataset.sort; S.sort = { key: k, dir: S.sort.key === k ? -S.sort.dir : 1 }; renderVideos();
+  });
+  document.querySelectorAll("tr[data-key]").forEach(tr => tr.onclick = () => openModal(findTask(tr.dataset.key)));
+  document.querySelectorAll("select.status").forEach(sel => sel.onchange = () => quickStatus(findTask(sel.dataset.key), sel.value));
+}
+
+function formatsFor(channel, current) {
+  const all = S.lists.formats || ["Long Form", "Short Form"];
+  const map = (S.lists.channelFormats || []).filter(m => m.channel === channel).map(m => m.format);
+  const out = map.length ? all.filter(f => map.includes(f)).concat(map.filter(f => !all.includes(f))) : all.slice();
+  if (current && !out.includes(current)) out.push(current);
+  return out;
+}
+
+function findTask(key) { const [ed, row] = key.split("|"); return S.tasks.find(t => t.editor === ed && String(t.row) === row); }
+
+async function quickStatus(t, status) {
+  const task = { ...t, status };
+  if (status === "Delivered" && !t.deliveredDate) task.deliveredDate = S.today;
+  try {
+    await api("update", { editor: t.editor, row: t.row, orig: t.title, task });
+    Object.assign(t, task); toast(`“${t.title}” → ${status}`); renderVideos();
+    load(true);
+  } catch (e) { toast(e.message, true); load(true); }
+}
+
+// ------------------------------------------------------------------ modal
+function openModal(t) {
+  S.modalOpen = true;
+  const isNew = !t;
+  const v = t || { editor: S.view === "editor" ? S.editor : "", priority: "Normal", status: "Not started", assignedDate: S.today, revisions: 0 };
+  const sel = (id, arr, val, blank = true) => `<select id="${id}">${blank ? `<option value=""></option>` : ""}${(arr || []).map(o => `<option ${o === val ? "selected" : ""}>${esc(o)}</option>`).join("")}</select>`;
+  const inp = (id, type, val, extra = "") => `<input id="${id}" type="${type}" value="${esc(val ?? "")}" ${extra}>`;
+  $("#modalRoot").innerHTML = `
+  <div class="backdrop" id="bd"><div class="modal" role="dialog">
+    <div class="modal-h"><h3>${isNew ? "Add video" : "Edit video"}</h3><button class="x" id="mx">×</button></div>
+    <div class="form">
+      <div class="f w4"><label>Video title *</label>${inp("m_title", "text", v.title, 'placeholder="e.g. 10 Mistakes First-Time Home Buyers Make"')}</div>
+      <div class="f"><label>Editor *</label>${sel("m_editor", S.editors, v.editor)}</div>
+      <div class="f"><label>Client / Channel</label>${sel("m_client", S.lists.clients, v.client)}</div>
+      <div class="f"><label>Format</label>${sel("m_format", formatsFor(v.client, v.format), v.format)}</div>
+      <div class="f"><label>Assigned by</label>${sel("m_assignedBy", S.lists.assigners, v.assignedBy)}</div>
+      <div class="f"><label>Assigned date</label>${inp("m_assignedDate", "date", v.assignedDate)}</div>
+      <div class="f"><label>Due date</label>${inp("m_dueDate", "date", v.dueDate)}</div>
+      <div class="f"><label>First draft date</label>${inp("m_firstDraftDate", "date", v.firstDraftDate)}</div>
+      <div class="f"><label>Delivered date</label>${inp("m_deliveredDate", "date", v.deliveredDate)}</div>
+      <div class="f"><label>Priority</label>${sel("m_priority", S.lists.priority, v.priority)}</div>
+      <div class="f w2"><label>Status</label>${sel("m_status", S.lists.status, v.status)}</div>
+      <div class="f"><label>Revisions</label>${inp("m_revisions", "number", v.revisions, 'min="0"')}</div>
+      <div class="f w4"><label>Blocker / waiting on</label>${inp("m_blocker", "text", v.blocker, 'placeholder="e.g. Waiting on client feedback"')}</div>
+      <div class="f w4"><label>Final file link</label>${inp("m_finalLink", "url", v.finalLink, 'placeholder="https://drive.google.com/…"')}</div>
+      <div class="sec">QC <small>filled automatically by the QC tool once connected — you can also set it by hand</small></div>
+      <div class="f w2"><label>QC result</label>${sel("m_qcResult", S.lists.qc, v.qcResult)}</div>
+      <div class="f w2"><label>QC report link</label>${inp("m_qcReport", "url", v.qcReport)}</div>
+    </div>
+    <div class="modal-f">
+      ${isNew ? "" : `<button class="btn danger" id="mdel">Delete</button>`}
+      <div class="spacer"></div><span class="err" id="merr"></span>
+      <button class="btn" id="mcancel">Cancel</button><button class="btn primary" id="msave">${isNew ? "Add video" : "Save changes"}</button>
+    </div>
+  </div></div>`;
+  const close = () => { $("#modalRoot").innerHTML = ""; S.modalOpen = false; render(); };
+  $("#mx").onclick = close; $("#mcancel").onclick = close;
+  $("#bd").onclick = e => { if (e.target.id === "bd") close(); };
+  document.addEventListener("keydown", function esc_(e) { if (e.key === "Escape" && S.modalOpen) { close(); document.removeEventListener("keydown", esc_); } });
+  setTimeout(() => $("#m_title").focus(), 30);
+
+  $("#m_client").onchange = () => {
+    const ch = $("#m_client").value, cur = $("#m_format").value, opts = formatsFor(ch);
+    $("#m_format").innerHTML = `<option value=""></option>` + opts.map(o => `<option>${esc(o)}</option>`).join("");
+    $("#m_format").value = opts.includes(cur) ? cur : (opts.length === 1 ? opts[0] : "");
+  };
+  $("#m_status").onchange = () => { if ($("#m_status").value === "Delivered" && !$("#m_deliveredDate").value) $("#m_deliveredDate").value = S.today; };
+
+  $("#msave").onclick = async () => {
+    const F = ["title", "client", "format", "assignedBy", "priority", "assignedDate", "dueDate", "firstDraftDate", "deliveredDate", "status", "revisions", "blocker", "finalLink", "qcResult", "qcReport"];
+    const task = {}; F.forEach(k => task[k] = $("#m_" + k).value.trim());
+    const editor = $("#m_editor").value;
+    if (!task.title) return ($("#merr").textContent = "Add a video title.");
+    if (!editor) return ($("#merr").textContent = "Pick an editor.");
+    $("#msave").disabled = true; $("#msave").textContent = "Saving…"; $("#merr").textContent = "";
+    try {
+      if (isNew) { await api("add", { editor, task }); toast(`Added for ${editor}`); }
+      else { await api("update", { editor: t.editor, row: t.row, orig: t.title, newEditor: editor, task }); toast(editor !== t.editor ? `Moved to ${editor}` : "Saved"); }
+      S.modalOpen = false; $("#modalRoot").innerHTML = ""; await load();
+    } catch (e) { $("#merr").textContent = e.message; $("#msave").disabled = false; $("#msave").textContent = isNew ? "Add video" : "Save changes"; }
+  };
+  if (!isNew) $("#mdel").onclick = async () => {
+    const b = $("#mdel");
+    if (!b.classList.contains("confirm")) { b.classList.add("confirm"); b.textContent = "Click again to delete"; return; }
+    try { await api("delete", { editor: t.editor, row: t.row, orig: t.title }); toast("Deleted"); S.modalOpen = false; $("#modalRoot").innerHTML = ""; await load(); }
+    catch (e) { $("#merr").textContent = e.message; }
+  };
+}
+
+let toastTimer;
+function toast(msg, bad) {
+  let el = $(".toast"); if (!el) { el = document.createElement("div"); document.body.appendChild(el); }
+  el.className = "toast" + (bad ? " bad" : ""); el.textContent = msg;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => el.remove(), 2800);
+}
+
+// ------------------------------------------------------------------ demo data (used only when API_URL is empty)
+const Demo = (() => {
+  const editors = ["Abhirathan","Jerin","Akshay","Anjali M G","Abiram C","Poorvi","Shnehasis","Ameer Ali","Al Shab Kottarath","Mamidi Pavan","Shabbir","Harshit Sharma","Astitya Roy","Kamal Tiwari","Vijeta Ninan","Saajid"];
+  const lists = {
+    clients: [], assigners: ["Deepak Ranjan Maharana", "Siddhant", "Shadab", "Sunil Patel", "Ganesh Bhatt"],
+    priority: ["Urgent", "High", "Normal", "Low"],
+    status: ["Not started", "Editing", "Internal review", "Revisions", "Client review", "Approved", "Delivered", "On hold"],
+    qc: ["Pending", "Passed", "Failed – fixes needed"], formats: ["Long Form", "Short Form"],
+    channelFormats: [["Leap Scholar (Big Leap)","L"],["Groww Mutual Funds","L"],["HomeLane","L"],["HomeLane Ads","S"],["Perspective By InCred","L"],
+      ["Perccent Money","L"],["Perccent Money","S"],["Rayl","S"],["InCred Money (Trading Titans)","L"],["How They Made It by Groww","L"],
+      ["Trading w Groww","L"],["Google GDG","L"],["Unwired","L"],["Unwired","S"],["How They Made It by Groww","S"],["Groww-Main","L"],
+      ["Onto","S"],["Kuvera","L"],["Kuvera","S"],["Clear Tax","L"],["Clear Tax","S"],["Azzy","S"],["Casting Content","S"]]
+      .map(([channel, f]) => ({ channel, format: f === "L" ? "Long Form" : "Short Form" }))
+  };
+  lists.clients = [...new Set(lists.channelFormats.map(m => m.channel))];
+  const titles = ["10 Mistakes First-Time Home Buyers Make", "Full Kitchen Renovation Walkthrough", "Budget Travel Guide: Goa", "Podcast Ep. 42 – Long-form cut",
+    "iPhone vs Pixel: 6 Months Later", "How We Grew to 1M Subscribers", "Weekly Market Recap", "Beginner Strength Training – Full Guide",
+    "Documentary: Bangalore Street Food", "Q&A Livestream Highlights", "Mutual Funds Explained Simply", "Day in the Life of a Pilot",
+    "Top 5 Budget Laptops", "Interview: Startup Founder Story", "Building a Home Studio", "Why EVs Are Getting Cheaper"];
+  let seed = 7; const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+  const pick = a => a[Math.floor(rnd() * a.length)];
+  const today = localISO(new Date());
+  const tasks = [];
+  editors.forEach((ed, ei) => {
+    const n = 2 + Math.floor(rnd() * 4);
+    for (let i = 0; i < n; i++) {
+      const status = pick(["Editing", "Editing", "Internal review", "Revisions", "Client review", "Approved", "Delivered", "Delivered", "Not started", "On hold"]);
+      const a = -Math.floor(rnd() * 14) - 1, due = a + 5 + Math.floor(rnd() * 8);
+      const t = { editor: ed, row: 5 + i,
+        title: pick(titles), ...(m => ({ client: m.channel, format: m.format }))(pick(lists.channelFormats)), assignedBy: pick(lists.assigners), priority: pick(["Urgent", "High", "Normal", "Normal", "Normal", "Low"]),
+        assignedDate: addDays(today, a), dueDate: addDays(today, due), firstDraftDate: "", deliveredDate: "", status,
+        revisions: ["Revisions", "Client review", "Approved", "Delivered"].includes(status) ? Math.floor(rnd() * 3) : 0,
+        blocker: rnd() < .15 ? pick(["Waiting on client feedback", "Missing B-roll", "Script not final"]) : "",
+        finalLink: "", qcResult: "", qcReport: "" };
+      if (["Internal review", "Revisions", "Client review", "Approved", "Delivered"].includes(status)) {
+        t.firstDraftDate = addDays(today, Math.min(-1, a + 3));
+        t.qcResult = status === "Revisions" && rnd() < .6 ? "Failed – fixes needed" : "Passed"; t.qcReport = "https://example.com/qc-report";
+      } else if (status === "Editing" && rnd() < .3) t.qcResult = "Pending";
+      if (status === "Delivered") { t.deliveredDate = addDays(today, Math.min(0, due)); t.finalLink = "https://drive.google.com/"; }
+      tasks.push(t);
+    }
+  });
+  const nextRow = ed => Math.max(4, ...tasks.filter(t => t.editor === ed).map(t => t.row)) + 1;
+  return {
+    async handle(action, p) {
+      await new Promise(r => setTimeout(r, 150));
+      if (action === "getAll") return { ok: true, editors, lists, tasks: tasks.map(t => ({ ...t })), today };
+      if (action === "add") { const row = nextRow(p.editor); tasks.push({ ...p.task, editor: p.editor, row }); return { ok: true }; }
+      const i = tasks.findIndex(t => t.editor === p.editor && t.row === p.row);
+      if (i < 0) throw new Error("Not found");
+      if (action === "delete") { tasks.splice(i, 1); return { ok: true }; }
+      if (action === "update") {
+        if (p.newEditor && p.newEditor !== p.editor) { tasks.splice(i, 1); const row = nextRow(p.newEditor); tasks.push({ ...p.task, editor: p.newEditor, row }); }
+        else Object.assign(tasks[i], p.task);
+        return { ok: true };
+      }
+      throw new Error("Unknown action");
+    }
+  };
+})();
+
+// ------------------------------------------------------------------ start
+(async function start() {
+  if (S.demo) { $("#demoBar").classList.remove("hidden"); await load(); showApp(); }
+  else {
+    const saved = store.get("ytb_pw");
+    if (saved) { S.pw = saved; if (await load(true)) { showApp(); } else { $("#login").classList.remove("hidden"); } }
+    else $("#login").classList.remove("hidden");
+  }
+  setInterval(() => { if (S.pw || S.demo) if (!S.modalOpen && !$("#app").classList.contains("hidden")) load(true); }, CONFIG.AUTO_REFRESH_SEC * 1000);
+})();
+</script>
+</body>
+</html>
