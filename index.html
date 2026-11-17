@@ -203,6 +203,8 @@
   .dsel { position: relative; }
   .dsel i { position: absolute; left: 12px; top: 50%; width: 8px; height: 8px; margin-top: -4px; border-radius: 50%; pointer-events: none; }
   .dsel.has select { padding-left: 28px; }
+  .input.miss { border-color: var(--red); background: color-mix(in srgb, var(--red) 7%, var(--surface)); }
+  .tm-req { font-size: 11.5px; color: var(--muted); }
   .tm-grid.four { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px 10px; }
   .tm-grid.four .input { padding: 0 8px; }
   .cobox { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-height: 38px; padding: 5px 6px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
@@ -1107,15 +1109,28 @@ function formatsFor(channel, current) {
   if (current && !out.includes(current)) out.push(current);
   return out;
 }
+// ---------------------------------------------------------------- required fields
+const REQ = [["title", "Video title"], ["editor", "Main editor"], ["client", "Channel"], ["format", "Format"], ["assignedBy", "Assigned by"],
+  ["shift", "Day slot"], ["assignedDate", "Assigned date"], ["dueDate", "Due date"]];
+const AFTER_DRAFT = ["Internal review", "Revisions", "Client review", "Approved", "Delivered", "Uploaded"];
+// returns [[field, label], …] that are missing for this video at its stage
+function missingFields(t) {
+  const m = REQ.filter(([k]) => !String(t[k] ?? "").trim());
+  if (AFTER_DRAFT.includes(t.status) && !t.firstDraftDate) m.push(["firstDraftDate", "First draft date (needed from Internal review on)"]);
+  if (DONE.includes(t.status) && !t.deliveredDate) m.push(["deliveredDate", "Delivered date"]);
+  return m;
+}
 async function quickStatus(t, status) {
   const task = { ...t, status };
   if (DONE.includes(status) && !t.deliveredDate) task.deliveredDate = S.today;
-  const prev = { status: t.status, deliveredDate: t.deliveredDate };
+  if (AFTER_DRAFT.includes(status) && !t.firstDraftDate) task.firstDraftDate = S.today;
+  if (missingFields(task).length) { toast("Fill in the required fields first", true); return openTaskModal(t, { status }); }
+  const prev = { status: t.status, deliveredDate: t.deliveredDate, firstDraftDate: t.firstDraftDate };
   Object.assign(t, task); render();
   try { await api("update", { editor: t.editor, row: t.row, orig: t.title, task }); toast(`Moved to ${status}`); load(true); }
   catch (e) { Object.assign(t, prev); render(); toast(e.message, true); }
 }
-function openTaskModal(t) {
+function openTaskModal(t, preset) {
   S.modalOpen = true;
   const isNew = !t;
   const v = t || { editor: S.f.editor && S.editors.includes(S.f.editor) ? S.f.editor : "", priority: "Normal", status: "Not started", assignedDate: S.today, revisions: 0, client: S.f.client || "", format: S.f.format || "" };
@@ -1128,19 +1143,19 @@ function openTaskModal(t) {
       <div class="field"><label for="m_title">Video title *</label><input class="input" id="m_title" type="text" value="${esc(v.title ?? "")}" placeholder="e.g. Mutual Funds Explained Simply"></div>
       <div class="tm-grid">
         <div class="field"><label for="m_editor">Main editor *</label>${sel("m_editor", S.editors, v.editor, "Pick editor")}</div>
-        <div class="field"><label for="m_client">Channel</label>${sel("m_client", S.lists.clients, v.client, "Pick channel")}</div>
+        <div class="field"><label for="m_client">Channel *</label>${sel("m_client", S.lists.clients, v.client, "Pick channel")}</div>
         <div class="field"><label for="m_status">Stage</label>${dsel("m_status", "status", S.lists.status || Object.keys(STATUS_DOT), v.status, "Select")}</div>
         <div class="field"><label for="m_priority">Priority</label>${dsel("m_priority", "priority", S.lists.priority || Object.keys(PRI_C), v.priority, "Select")}</div>
-        <div class="field"><label for="m_format">Format</label><div id="fmtBox"></div></div>
-        <div class="field"><label for="m_shift">Day slot</label>${dsel("m_shift", "shift", S.lists.shifts && S.lists.shifts.length ? S.lists.shifts : SHIFTS, v.shift, "Select")}</div>
-        <div class="field"><label for="m_assignedBy">Assigned by</label>${sel("m_assignedBy", S.lists.assigners, v.assignedBy, "Select")}</div>
+        <div class="field"><label for="m_format">Format *</label><div id="fmtBox"></div></div>
+        <div class="field"><label for="m_shift">Day slot *</label>${dsel("m_shift", "shift", S.lists.shifts && S.lists.shifts.length ? S.lists.shifts : SHIFTS, v.shift, "Select")}</div>
+        <div class="field"><label for="m_assignedBy">Assigned by *</label>${sel("m_assignedBy", S.lists.assigners, v.assignedBy, "Select")}</div>
         <div class="field"><label for="m_revisions">Revisions</label>${inp("m_revisions", "number", v.revisions, 'min="0"')}</div>
         <div class="field full"><label>Also working on it <small>(optional)</small></label><div class="cobox" id="p_co"></div></div>
       </div>
       <div class="tm-sec">Dates</div>
       <div class="tm-grid four">
-        <div class="field"><label for="m_assignedDate">Assigned</label>${inp("m_assignedDate", "date", v.assignedDate)}</div>
-        <div class="field"><label for="m_dueDate">Due</label>${inp("m_dueDate", "date", v.dueDate)}</div>
+        <div class="field"><label for="m_assignedDate">Assigned *</label>${inp("m_assignedDate", "date", v.assignedDate)}</div>
+        <div class="field"><label for="m_dueDate">Due *</label>${inp("m_dueDate", "date", v.dueDate)}</div>
         <div class="field"><label for="m_firstDraftDate">First draft</label>${inp("m_firstDraftDate", "date", v.firstDraftDate)}</div>
         <div class="field"><label for="m_deliveredDate">Delivered</label>${inp("m_deliveredDate", "date", v.deliveredDate)}</div>
       </div>
@@ -1152,7 +1167,7 @@ function openTaskModal(t) {
         <div class="field"><label for="m_qcReport">QC report link</label>${inp("m_qcReport", "url", v.qcReport, 'placeholder="https://…"')}</div>
       </div>
     </div>
-    <div class="modal-f">${isNew ? "" : `<button class="btn danger" id="mdel">Delete</button>`}<span class="err" id="merr" style="flex:1;text-align:right"></span>
+    <div class="modal-f">${isNew ? "" : `<button class="btn danger" id="mdel">Delete</button>`}<span class="tm-req">* required</span><span class="err" id="merr" style="flex:1;text-align:right"></span>
       <button class="btn" id="mcancel">Cancel</button><button class="btn primary" id="msave">${isNew ? "Add video" : "Save"}</button></div>
   </div></div>`;
   const close = () => { $("#modalRoot").innerHTML = ""; S.modalOpen = false; document.removeEventListener("keydown", onKey); render(); };
@@ -1160,6 +1175,7 @@ function openTaskModal(t) {
   document.addEventListener("keydown", onKey);
   $("#mx").onclick = close; $("#mcancel").onclick = close; $("#bd").onclick = e => { if (e.target.id === "bd") close(); };
   if (isNew) setTimeout(() => $("#m_title").focus(), 30);
+  if (preset && preset.status) { $("#m_status").value = preset.status; }
   const dot = (id, kind) => { const el = $("#" + id); el.addEventListener("change", () => { $("#" + id + "_dot").style.background = el.value ? colorFor(kind, el.value) : "transparent"; el.parentNode.classList.toggle("has", !!el.value); }); };
   // Format list follows the channel (only the formats that channel makes)
   let curFmt = v.format || "";
@@ -1174,7 +1190,16 @@ function openTaskModal(t) {
   drawFormat();
   $("#m_client").onchange = drawFormat;
   [["m_status", "status"], ["m_priority", "priority"], ["m_shift", "shift"], ["m_qcResult", "qc"]].forEach(([id, k]) => dot(id, k));
-  $("#m_status").addEventListener("change", e => { if (DONE.includes(e.target.value) && !$("#m_deliveredDate").value) $("#m_deliveredDate").value = S.today; });
+  const markReq = () => {
+    const st = $("#m_status").value;
+    $("#m_firstDraftDate").closest(".field").querySelector("label").innerHTML = "First draft" + (AFTER_DRAFT.includes(st) ? " *" : "");
+    $("#m_deliveredDate").closest(".field").querySelector("label").innerHTML = "Delivered" + (DONE.includes(st) ? " *" : "");
+  };
+  $("#m_status").addEventListener("change", e => { if (DONE.includes(e.target.value) && !$("#m_deliveredDate").value) $("#m_deliveredDate").value = S.today; markReq(); });
+  markReq();
+  if (preset && preset.status) { $("#m_status").dispatchEvent(new Event("change")); }
+  $("#modalRoot").addEventListener("input", e => e.target.classList.remove("miss"));
+  $("#modalRoot").addEventListener("change", e => e.target.classList.remove("miss"));
   // co-workers: chips + one "Add person" dropdown
   let CO = t ? coList(t) : [];
   const drawCo = () => {
@@ -1194,8 +1219,13 @@ function openTaskModal(t) {
     const task = {}; F.forEach(k => task[k] = $("#m_" + k).value.trim());
     task.coEditors = CO.join(", ");
     const editor = $("#m_editor").value;
-    if (!task.title) { $("#m_title").focus(); return ($("#merr").textContent = "Add a video title."); }
-    if (!editor) return ($("#merr").textContent = "Pick the main editor.");
+    document.querySelectorAll(".modal .miss").forEach(x => x.classList.remove("miss"));
+    const miss = missingFields({ ...task, editor });
+    if (miss.length) {
+      miss.forEach(([k]) => { const el = $("#m_" + k); if (el) el.classList.add("miss"); });
+      const first = $("#m_" + miss[0][0]); if (first) first.focus();
+      return ($("#merr").textContent = miss.length === 1 ? `Fill in: ${miss[0][1]}` : `Fill in ${miss.length} required fields (marked red)`);
+    }
     $("#msave").disabled = true; $("#msave").textContent = "Saving…"; $("#merr").textContent = "";
     try {
       if (isNew) { await api("add", { editor, task }); toast(`Added for ${editor}`); }
