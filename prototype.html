@@ -935,8 +935,7 @@ function cardHTML(v, i) {
     <div class="top">${chip("format", v.format, v.format === "Short Form" ? "Short" : "Long")}${chip("priority", v.priority)}${!pre && v.shift ? chip("shift", v.shift) : ""}
       <span style="margin-left:auto;display:inline-flex;gap:6px;align-items:center;color:var(--muted);font-size:11px">${mine(v) ? `<span class="mine-dot" title="You're on this video"></span>` : ""}${movable ? "" : LOCK}</span></div>
     <div class="t">${esc(v.title)}</div>${lateLine(v)}
-    <div class="ch">${chName(v.client)}${dateLine ? ` · ${dateLine}` : ""}</div>${pre ? "" : linkChips(v)}
-    ${v.blocker ? `<div class="note">⏸ ${esc(v.blocker)}</div>` : ""}
+    <div class="ch">${chName(v.client)}${dateLine ? ` · ${dateLine}` : ""}</div>
     ${people}
     ${v.qcResult === "Failed – fixes needed" ? `<div class="qcflag">QC failed: fixes needed</div>` : ""}</button>`;
 }
@@ -993,7 +992,7 @@ function renderTable() {
   const cols = [["Video", v => `<b style="font-weight:600">${esc(v.title)}</b>${lateLine(v)}<div class="note mono">${v.id}</div>`, "wrap"], ["Stage", v => chip("status", v.status)], ["Channel", v => chName(v.client)]]
     .concat(pre ? [["CM", v => esc(v.cm)], ["Shoot", v => fmtDate(v.shootDate)], ["Cut", v => fmtDate(v.cutDate)], ["Handover", v => fmtDate(v.handoverDate)]] : [])
     .concat([["Pod lead", v => esc(v.podLead)], ["Editor", v => esc(editorsOf(v).join(" + "))], ["Day slot", v => chip("shift", v.shift)], ["Due", v => fmtDate(v.dueDate)],
-      ["First draft", v => fmtDate(v.firstDraftDate)], ["Approved", v => fmtDate(v.approvedDate)], ["Rev.", v => esc(v.revisions)], ["Links", v => linkChips({ frameLink: v.frameLink, finalLink: v.finalLink, comments: v.comments }).replace('class="lnks"', 'class="lnks" style="margin:0;flex-wrap:nowrap"')], ["Delay reason", v => esc(v.delayReason), "wrap"]]);
+      ["First draft", v => fmtDate(v.firstDraftDate)], ["Approved", v => fmtDate(v.approvedDate)], ["Rev.", v => esc(v.revisions)], ["Delay reason", v => esc(v.delayReason), "wrap"]]);
   $("#view").innerHTML = `<div class="panel">${T.length ? `<div class="tbl-wrap"><table><thead><tr>${cols.map(c => `<th style="cursor:default">${c[0]}</th>`).join("")}</tr></thead>
     <tbody>${T.map((v, i) => `<tr class="click ${isOverdue(v) ? "overdue" : ""}" style="--i:${Math.min(i, 30)}" data-id="${v.id}">${cols.map(c => `<td class="${c[2] || ""}">${c[1](v) || ""}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`
     : `<div class="loading">No videos match these filters.</div>`}</div>`;
