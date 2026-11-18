@@ -320,6 +320,46 @@
   .pw-eye:hover { color: var(--text); background: var(--surface2); }
   .pw-eye svg { width: 18px; height: 18px; }
   @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+  /* ---------- assistant ---------- */
+  .as-fab { position: fixed; right: 22px; bottom: 22px; z-index: 60; width: 54px; height: 54px; border-radius: 50%; border: 0; cursor: pointer;
+    background: var(--accent); color: var(--accentText); box-shadow: 0 10px 28px rgba(0,0,0,.25); display: grid; place-items: center; transition: transform .15s; }
+  .as-fab:hover { transform: translateY(-2px) scale(1.04); }
+  .as-fab svg { width: 24px; height: 24px; }
+  .as-panel { position: fixed; right: 22px; bottom: 22px; z-index: 60; width: 390px; max-width: calc(100vw - 24px); height: 560px; max-height: calc(100vh - 100px);
+    background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadowLg); display: flex; flex-direction: column; overflow: hidden; animation: asIn .18s ease-out; }
+  @keyframes asIn { from { opacity: 0; transform: translateY(12px) scale(.98); } to { opacity: 1; transform: none; } }
+  .as-h { display: flex; align-items: center; gap: 8px; padding: 12px 12px 12px 16px; border-bottom: 1px solid var(--line); }
+  .as-h .icon-btn { color: var(--muted); font-size: 18px; }
+  .as-ic { width: 40px; height: 40px; border-radius: 12px; background: var(--accentSoft); color: var(--accent); display: grid; place-items: center; flex: none; }
+  .as-ic svg { width: 22px; height: 22px; } .as-ic.sm { width: 28px; height: 28px; border-radius: 8px; } .as-ic.sm svg { width: 16px; height: 16px; }
+  .as-body { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+  .as-m { max-width: 88%; padding: 9px 12px; border-radius: 12px; font-size: 13px; line-height: 1.5; word-wrap: break-word; }
+  .as-m.me { align-self: flex-end; background: var(--accent); color: var(--accentText); border-bottom-right-radius: 4px; }
+  .as-m.bot { align-self: flex-start; background: var(--surface2); border: 1px solid var(--line); border-bottom-left-radius: 4px; max-width: 96%; }
+  .as-in { display: flex; gap: 8px; padding: 10px; border-top: 1px solid var(--line); }
+  .as-in .btn { width: 40px; padding: 0; justify-content: center; }
+  .as-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .as-chips.col { flex-direction: column; align-items: stretch; padding: 12px; margin: 0; }
+  .as-chips button { border: 1px solid var(--line); background: var(--surface); color: var(--text2); border-radius: 999px; padding: 5px 11px; font-size: 12px; cursor: pointer; text-align: left; }
+  .as-chips.col button { border-radius: 8px; padding: 8px 12px; }
+  .as-chips button:hover { border-color: var(--accent); color: var(--accent); }
+  .as-empty { margin: auto 0; text-align: center; color: var(--muted); display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .as-empty b { color: var(--text); font-size: 15px; } .as-empty p { margin: 0; font-size: 12.5px; } .as-empty .as-chips { justify-content: center; }
+  .as-t { border-collapse: collapse; margin: 8px 0 2px; font-size: 12px; width: 100%; }
+  .as-t th { text-align: left; color: var(--muted); font-weight: 600; font-size: 11px; padding: 4px 8px 4px 0; border-bottom: 1px solid var(--line); }
+  .as-t td { padding: 4px 8px 4px 0; border-bottom: 1px solid var(--line2); }
+  .as-l { margin: 6px 0 2px; padding-left: 16px; } .as-l li { margin: 3px 0; }
+  .as-v { border: 0; background: none; padding: 0; color: var(--accent); font-weight: 600; cursor: pointer; text-align: left; font-size: inherit; }
+  .as-v:hover { text-decoration: underline; }
+  .as-dots { display: inline-flex; gap: 4px; } .as-dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); animation: asDot 1s infinite; }
+  .as-dots i:nth-child(2) { animation-delay: .15s; } .as-dots i:nth-child(3) { animation-delay: .3s; }
+  @keyframes asDot { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
+  .as-page-h { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; flex-wrap: wrap; }
+  .as-cols { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 18px; }
+  .as-chat { display: flex; flex-direction: column; height: calc(100vh - 210px); min-height: 420px; }
+  .as-chat .as-m { max-width: 75%; font-size: 13.5px; }
+  @media (max-width: 900px) { .as-cols { grid-template-columns: 1fr; } .as-side { display: none; } }
 </style>
 </head>
 <body>
@@ -374,6 +414,7 @@
   <main id="view"><div class="loading">Loading…</div></main>
 </div>
 <div id="modalRoot"></div>
+<div id="asstRoot"></div>
 
 <script>
 // ================================================================ state
@@ -518,7 +559,7 @@ $("#loginForm").addEventListener("submit", async e => {
 });
 function showApp() { $("#login").classList.add("hidden"); $("#app").classList.remove("hidden"); S.anim = true; render(); }
 function logout(silent) {
-  store.del("ytb_token"); store.del("ytb_cache"); S.token = ""; S.me = null; S.users = null;
+  store.del("ytb_token"); store.del("ytb_cache"); store.del("ytb_asst"); AS.msgs = []; AS.open = false; AS.activity = null; $("#asstRoot").innerHTML = ""; S.token = ""; S.me = null; S.users = null;
   $("#app").classList.add("hidden"); $("#login").classList.remove("hidden"); $("#meMenu").classList.add("hidden");
 }
 
@@ -529,7 +570,7 @@ document.addEventListener("click", e => { if (!$("#meMenu").contains(e.target)) 
 
 function renderHeader() {
   const views = [["board", "Board"], ["table", "Table"]];
-  if (isAdmin()) views.push(["admin", "Admin dashboard"], ["activity", "Activity"]);
+  if (isAdmin()) views.push(["admin", "Admin dashboard"], ["activity", "Activity"], ["assistant", "Assistant"]);
   if (isOwner()) views.push(["access", "Access"]);
   if (isSuper()) views.push(["settings", "Settings"]);
   $("#nav").innerHTML = views.map(([k, l]) => `<button data-v="${k}" class="${S.view === k ? "on" : ""}">${l}</button>`).join("");
@@ -556,7 +597,7 @@ function openPreset(p) {
   go("table", true);
 }
 function go(v, keepFilters) {
-  if (((v === "admin" || v === "activity") && !isAdmin()) || (v === "access" && !isOwner()) || (v === "settings" && !isSuper())) v = "board";
+  if ((["admin", "activity", "assistant"].includes(v) && !isAdmin()) || (v === "access" && !isOwner()) || (v === "settings" && !isSuper())) v = "board";
   S.view = v;
   if (!keepFilters) S.f.preset = "";
   window.scrollTo(0, 0); S.anim = true; render();
@@ -569,11 +610,13 @@ function go(v, keepFilters) {
 function render() {
   if (!S.me) return;
   renderHeader();
+  renderAssistantBubble();
   const view = $("#view");
   view.classList.remove("enter");
   if (S.anim) { void view.offsetWidth; view.classList.add("enter"); S.anim = false; }
   if (S.view === "admin") { $("#toolbar").classList.add("hidden"); return renderAdmin(); }
   if (S.view === "activity") { $("#toolbar").classList.add("hidden"); return renderActivity(); }
+  if (S.view === "assistant") { $("#toolbar").classList.add("hidden"); return renderAssistantPage(); }
   if (S.view === "access") { $("#toolbar").classList.add("hidden"); return renderAccess(); }
   if (S.view === "settings") { $("#toolbar").classList.add("hidden"); return renderSettings(); }
   renderToolbar();
@@ -1348,6 +1391,225 @@ function addEyes(root) {
 }
 addEyes();
 new MutationObserver(() => addEyes()).observe(document.body, { childList: true, subtree: true });
+
+// ================================================================ assistant (admins + owners)
+// Answers questions about the tracker from the data already on the page. No AI service, so it
+// is free and instant. It understands people, channels, stages and time words ("this month").
+const AS = { open: false, msgs: [], busy: false, activity: null };
+try { AS.msgs = JSON.parse(store.get("ytb_asst") || "[]").slice(-60); } catch (e) { AS.msgs = []; }
+const asSave = () => store.set("ytb_asst", JSON.stringify(AS.msgs.slice(-60)));
+const AS_SUGGEST = ["How many times did someone miss the deadline this month?", "Who has missed the most deadlines?", "What is overdue right now?",
+  "Who has the most work?", "What's due this week?", "How many videos are in client review?", "What is Jerin working on?", "Which videos failed QC?",
+  "What's blocked?", "Most revisions", "How many videos were delivered last month?", "What changed today?"];
+const SPARK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9z"/></svg>';
+
+// ---------- understanding the question
+function asRange(q) {
+  const t = S.today, d = n => addDays(t, n);
+  const [y, m] = t.split("-").map(Number);
+  const mStart = (yy, mm) => `${yy}-${String(mm).padStart(2, "0")}-01`;
+  const wd = (() => { const [a, b, c] = t.split("-").map(Number); return (new Date(a, b - 1, c).getDay() + 6) % 7; })();
+  let r;
+  if (/\btoday\b/.test(q)) r = [t, t, "today"];
+  else if (/\byesterday\b/.test(q)) r = [d(-1), d(-1), "yesterday"];
+  else if (/\blast week\b/.test(q)) r = [d(-wd - 7), d(-wd - 1), "last week"];
+  else if (/\bthis week\b|\bweek\b/.test(q)) r = [d(-wd), d(6 - wd), "this week"];
+  else if (/\blast month\b/.test(q)) { const pm = m === 1 ? 12 : m - 1, py = m === 1 ? y - 1 : y; r = [mStart(py, pm), addDays(mStart(y, m), -1), "last month"]; }
+  else if (/\bthis month\b|\bmonth\b/.test(q)) r = [mStart(y, m), d(0), "this month"];
+  else { const n = q.match(/\blast (\d{1,3}) days?\b/); if (n) r = [d(-Number(n[1])), t, `in the last ${n[1]} days`]; }
+  return r ? { from: r[0], to: r[1], label: r[2] } : null;
+}
+const asInRange = (date, R) => !R || (!!date && date >= R.from && date <= R.to);
+function asPeople() { return S.editors.concat((S.lists.assigners || []).filter(a => !S.editors.includes(a))); }
+function asFind(q, list) {
+  const hits = [];
+  list.forEach(n => {
+    const full = n.toLowerCase().replace(/\s*\(.*?\)\s*/g, " ").trim();
+    const first = full.split(/\s+/)[0];
+    const re = s => new RegExp(`(^|[^a-z])${s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([^a-z]|$)`);
+    if (re(full).test(q) || (first.length > 3 && re(first).test(q) && list.filter(x => x.toLowerCase().startsWith(first)).length === 1)) hits.push(n);
+  });
+  return hits;
+}
+function asStage(q) {
+  const st = (S.lists.status || []).slice().sort((a, b) => b.length - a.length);
+  return st.find(s => q.includes(s.toLowerCase())) || (/\breview\b/.test(q) && !/internal/.test(q) ? "Client review" : "");
+}
+
+// ---------- building answers
+const asLink = t => `<button type="button" class="as-v" data-ed="${esc(t.editor)}" data-row="${t.row}">${esc(t.title)}</button>`;
+function asTable(rows, head) {
+  return `<table class="as-t"><thead><tr>${head.map(h => `<th>${h}</th>`).join("")}</tr></thead><tbody>${rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+}
+function asList(T, extra, max = 8) {
+  if (!T.length) return "";
+  const shown = T.slice(0, max);
+  return `<ul class="as-l">${shown.map(t => `<li>${asLink(t)} <span class="note">· ${esc(editorsOf(t).join(" + "))} · ${esc(t.status)}${extra ? " · " + extra(t) : ""}</span></li>`).join("")}</ul>`
+    + (T.length > max ? `<div class="note">…and ${T.length - max} more. Open the Table view to see them all.</div>` : "");
+}
+const missedOf = t => !!t.dueDate && (isOverdue(t) || (isDone(t) && t.deliveredDate && t.deliveredDate > t.dueDate));
+const missedDate = t => isDone(t) ? t.deliveredDate : t.dueDate;
+const daysLateOf = t => isDone(t) ? dayDiff(t.dueDate, t.deliveredDate) : dayDiff(t.dueDate, S.today);
+
+async function asAnswer(raw) {
+  const q = " " + raw.toLowerCase().replace(/[?!.,]/g, " ").replace(/\s+/g, " ") + " ";
+  const R = asRange(q), rl = R ? ` ${R.label}` : "";
+  const ppl = asFind(q, asPeople()), who = ppl[0];
+  const chans = asFind(q, S.lists.clients || []), ch = chans[0];
+  const stage = asStage(q);
+  let T = S.tasks.slice();
+  if (who) T = T.filter(t => worksOn(t, who) || t.assignedBy === who);
+  if (ch) T = T.filter(t => t.client === ch);
+  const scope = [who, ch].filter(Boolean).join(", ");
+  const sc = scope ? ` for ${esc(scope)}` : "";
+
+  if (/\b(help|what can you|how do i use)\b/.test(q)) return { html: `I answer questions about the videos in this tracker: deadlines, overdue work, workload, stages, channels, QC, revisions, blockers and recent changes. Mention a person, a channel or a time ("this week", "last month", "last 30 days") to narrow it down.`, chips: AS_SUGGEST.slice(0, 6) };
+
+  // recent changes (Activity log)
+  if (/\b(changed|change|changes|edited|updated|activity|who did|happened)\b/.test(q)) {
+    if (!AS.activity) { try { AS.activity = (await api("activity", { limit: 1000 })).items; } catch (e) { return { html: `I couldn't load the Activity log: ${esc(e.message)}` }; } }
+    const RR = R || { from: S.today, to: S.today, label: "today" };
+    let L = AS.activity.filter(a => asInRange(String(a.time).slice(0, 10), RR));
+    if (who) L = L.filter(a => a.editor === who || String(a.who).toLowerCase().includes(who.toLowerCase().split(" ")[0]));
+    if (!L.length) return { html: `No changes ${RR.label}${sc}.` };
+    const byWho = {}; L.forEach(a => byWho[a.who] = (byWho[a.who] || 0) + 1);
+    return { html: `<b>${L.length}</b> change${L.length === 1 ? "" : "s"} ${RR.label}${sc}.<br>${asTable(Object.entries(byWho).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([w, n]) => [esc(w), n]), ["Who", "Changes"])}
+      <ul class="as-l">${L.slice(0, 6).map(a => `<li><b>${esc(a.video || a.editor || "Settings")}</b> <span class="note">· ${esc(a.who)} · ${esc(a.what)}</span></li>`).join("")}</ul>`, chips: ["Open the Activity page"] };
+  }
+
+  // missed deadlines / timelines
+  if (/\b(miss|missed|missing|late|deadline|deadlines|timeline|timelines|delay|delayed|behind)\b/.test(q) && !/\boverdue\b.*\bnow\b/.test(q)) {
+    const M = T.filter(missedOf).filter(t => asInRange(missedDate(t), R));
+    if (!M.length) return { html: `No missed deadlines${rl}${sc}. 🎉`, chips: ["What is overdue right now?", "What's due this week?"] };
+    const per = {}; M.forEach(t => editorsOf(t).forEach(e => per[e] = (per[e] || 0) + 1));
+    const rows = Object.entries(per).sort((a, b) => b[1] - a[1]);
+    const still = M.filter(t => !isDone(t)).length, wasLate = M.length - still;
+    const worst = M.slice().sort((a, b) => daysLateOf(b) - daysLateOf(a));
+    return { html: `<b>${M.length}</b> video${M.length === 1 ? "" : "s"} missed the deadline${rl}${sc}: <b>${still}</b> still overdue and <b>${wasLate}</b> delivered late.
+      ${who ? "" : asTable(rows.slice(0, 10).map(([e, n]) => [esc(e), n]), ["Editor", "Missed"])}
+      <div class="note" style="margin:6px 0 2px">Latest by days late:</div>${asList(worst, t => `${daysLateOf(t)}d late`, 6)}
+      <div class="note">Counts videos past their due date, plus videos delivered after it. A video shared by two editors counts for both.</div>`,
+      chips: ["Who has missed the most deadlines?", "What is overdue right now?", "Missed deadlines last month"] };
+  }
+
+  if (/\boverdue\b/.test(q)) {
+    const O = T.filter(isOverdue).sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+    return O.length ? { html: `<b>${O.length}</b> overdue right now${sc}.${asList(O, t => `${dayDiff(t.dueDate, S.today)}d late`)}` } : { html: `Nothing is overdue${sc}. 🎉` };
+  }
+
+  if (/\bdue\b/.test(q)) {
+    const RR = R || { from: S.today, to: addDays(S.today, 2), label: "in the next 48 hours" };
+    if (RR.from < S.today) RR.from = S.today;   // "due" means still to come; past ones are overdue
+    const U = T.filter(t => t.dueDate && !isDone(t) && asInRange(t.dueDate, RR)).sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+    return U.length ? { html: `<b>${U.length}</b> due ${RR.label}${sc}.${asList(U, t => `due ${fmtDate(t.dueDate)}`)}` } : { html: `Nothing is due ${RR.label}${sc}.` };
+  }
+
+  if (/\b(qc|quality)\b/.test(q)) {
+    const F = T.filter(qcFailed); const P = T.filter(t => t.qcResult === "Passed").length;
+    return { html: `<b>${F.length}</b> video${F.length === 1 ? "" : "s"} failed QC and need fixes${sc}; <b>${P}</b> passed.${asList(F)}` };
+  }
+
+  if (/\b(block|blocked|blocker|blockers|stuck|waiting)\b/.test(q)) {
+    const B = T.filter(t => t.blocker && !isDone(t));
+    return B.length ? { html: `<b>${B.length}</b> video${B.length === 1 ? " is" : "s are"} blocked${sc}.${asList(B, t => `“${esc(t.blocker)}”`)}` } : { html: `Nothing is blocked${sc}.` };
+  }
+
+  if (/\brevision|revisions\b/.test(q)) {
+    const V = T.filter(t => Number(t.revisions) > 0).sort((a, b) => Number(b.revisions) - Number(a.revisions));
+    const avg = T.length ? (T.reduce((s, t) => s + (Number(t.revisions) || 0), 0) / T.length) : 0;
+    return { html: `Average <b>${avg.toFixed(1)}</b> revisions per video${sc}. Most revisions:${asList(V, t => `${t.revisions} rev.`, 6)}` };
+  }
+
+  if (/\b(delivered|uploaded|finished|completed|done|shipped)\b/.test(q)) {
+    const RR = R || { from: monthStart(), to: S.today, label: "this month" };
+    const D = T.filter(t => isDone(t) && asInRange(t.deliveredDate, RR));
+    const per = {}; D.forEach(t => editorsOf(t).forEach(e => per[e] = (per[e] || 0) + 1));
+    return { html: `<b>${D.length}</b> video${D.length === 1 ? "" : "s"} delivered ${RR.label}${sc}.${D.length && !who ? asTable(Object.entries(per).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([e, n]) => [esc(e), n]), ["Editor", "Delivered"]) : ""}` };
+  }
+
+  if (/\b(most work|busiest|workload|free|least work|capacity|available)\b/.test(q)) {
+    const rows = asPeople().map(p => { const A = S.tasks.filter(t => worksOn(t, p) && isActive(t)); return [p, A.length, A.filter(isOverdue).length]; }).filter(r => r[1] || S.editors.includes(r[0]));
+    const least = /\b(free|least|available|capacity)\b/.test(q);
+    rows.sort((a, b) => least ? a[1] - b[1] : b[1] - a[1]);
+    return { html: `${least ? "Lightest" : "Heaviest"} workload right now (active videos):${asTable(rows.slice(0, 10).map(r => [esc(r[0]), r[1], r[2] ? `<span class="tag late">${r[2]} late</span>` : "0"]), ["Person", "Active", "Overdue"])}` };
+  }
+
+  if (stage) {
+    const X = T.filter(t => t.status === stage);
+    return { html: `<b>${X.length}</b> video${X.length === 1 ? "" : "s"} in <b>${esc(stage)}</b>${sc}.${asList(X)}` };
+  }
+
+  if (who) {
+    const A = T.filter(isActive);
+    return { html: `<b>${esc(who)}</b> is on <b>${A.length}</b> active video${A.length === 1 ? "" : "s"} (${A.filter(isOverdue).length} overdue).${asList(A, t => t.dueDate ? `due ${fmtDate(t.dueDate)}` : "")}`, chips: [`How many deadlines did ${who} miss this month?`] };
+  }
+  if (ch) {
+    const by = {}; T.filter(t => !isDone(t)).forEach(t => by[t.status] = (by[t.status] || 0) + 1);
+    return { html: `<b>${esc(ch)}</b>: ${T.filter(t => !isDone(t)).length} open, ${T.filter(isOverdue).length} overdue, ${T.filter(isDone).length} delivered.${asTable(Object.entries(by).map(([s, n]) => [esc(s), n]), ["Stage", "Videos"])}` };
+  }
+
+  if (/\b(how many|total|count|number)\b/.test(q)) {
+    return { html: `There are <b>${S.tasks.filter(isActive).length}</b> active videos, <b>${S.tasks.filter(isOverdue).length}</b> overdue, <b>${S.tasks.filter(isDueSoon).length}</b> due in the next 48 hours and <b>${S.tasks.filter(deliveredThisMonth).length}</b> delivered this month.` };
+  }
+
+  return { html: `I'm not sure how to answer that one. I'm a built-in assistant (no AI), so I work best with questions about deadlines, overdue work, workload, stages, channels, QC, revisions, blockers and recent changes. Try one of these:`, chips: AS_SUGGEST.slice(0, 6) };
+}
+
+// ---------- chat UI (bubble + full page share one conversation)
+function asMsgsHTML() {
+  if (!AS.msgs.length) return `<div class="as-empty"><div class="as-ic">${SPARK}</div><b>Ask about the tracker</b><p>Deadlines, overdue work, workload, stages, channels, QC and recent changes.</p>
+    <div class="as-chips">${AS_SUGGEST.slice(0, 5).map(s => `<button type="button" data-q="${esc(s)}">${esc(s)}</button>`).join("")}</div></div>`;
+  return AS.msgs.map(m => m.me ? `<div class="as-m me">${esc(m.text)}</div>`
+    : `<div class="as-m bot">${m.html}${m.chips && m.chips.length ? `<div class="as-chips">${m.chips.map(s => `<button type="button" data-q="${esc(s)}">${esc(s)}</button>`).join("")}</div>` : ""}</div>`).join("")
+    + (AS.busy ? `<div class="as-m bot"><span class="as-dots"><i></i><i></i><i></i></span></div>` : "");
+}
+function asForm(id) {
+  return `<form class="as-in" data-asform="${id}"><input type="text" class="input" placeholder="Ask a question…" aria-label="Ask the assistant" autocomplete="off">
+    <button class="btn primary" aria-label="Send"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button></form>`;
+}
+function asBind(root) {
+  root.querySelectorAll("[data-q]").forEach(b => b.onclick = () => asAsk(b.dataset.q));
+  root.querySelectorAll(".as-v").forEach(b => b.onclick = () => { const t = S.tasks.find(x => x.editor === b.dataset.ed && String(x.row) === b.dataset.row); if (t) openTaskModal(t); });
+  root.querySelectorAll("[data-asform]").forEach(f => f.onsubmit = e => { e.preventDefault(); const i = f.querySelector("input"); const v = i.value.trim(); if (v) { i.value = ""; asAsk(v); } });
+  const sc = root.querySelector(".as-body"); if (sc) sc.scrollTop = sc.scrollHeight;
+}
+async function asAsk(text) {
+  if (text === "Open the Activity page") return go("activity");
+  AS.msgs.push({ me: true, text }); AS.busy = true; asRefresh();
+  let a; try { a = await asAnswer(text); } catch (e) { a = { html: `Something went wrong: ${esc(e.message)}` }; }
+  AS.busy = false; AS.msgs.push({ html: a.html, chips: a.chips || [] }); asSave(); asRefresh();
+}
+function asRefresh() {
+  const p = $("#asPanel .as-body"); if (p) { p.innerHTML = asMsgsHTML(); asBind($("#asPanel")); }
+  const f = $("#asPage .as-body"); if (f) { f.innerHTML = asMsgsHTML(); asBind($("#asPage")); }
+  const i = document.querySelector(S.view === "assistant" ? "#asPage .as-in input" : "#asPanel .as-in input"); if (i) i.focus();
+}
+function renderAssistantBubble() {
+  const root = $("#asstRoot");
+  if (!isAdmin() || S.view === "assistant" || $("#app").classList.contains("hidden")) { root.innerHTML = ""; return; }
+  if (!AS.open) { root.innerHTML = `<button class="as-fab" id="asFab" title="Ask the assistant" aria-label="Open the assistant">${SPARK}</button>`; $("#asFab").onclick = () => { AS.open = true; renderAssistantBubble(); setTimeout(() => { const i = $("#asPanel input"); if (i) i.focus(); }, 30); }; return; }
+  if ($("#asPanel")) return;
+  root.innerHTML = `<div class="as-panel" id="asPanel" role="dialog" aria-label="Assistant">
+    <div class="as-h"><span class="as-ic sm">${SPARK}</span><b>Assistant</b><span class="note">admins only</span><span style="flex:1"></span>
+      <button class="icon-btn" id="asExpand" title="Open full page" aria-label="Open full page"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"/></svg></button>
+      <button class="icon-btn" id="asClose" title="Close" aria-label="Close">×</button></div>
+    <div class="as-body">${asMsgsHTML()}</div>${asForm("p")}</div>`;
+  $("#asClose").onclick = () => { AS.open = false; root.innerHTML = ""; renderAssistantBubble(); };
+  $("#asExpand").onclick = () => { AS.open = false; go("assistant"); };
+  asBind($("#asPanel"));
+}
+function renderAssistantPage() {
+  if (!isAdmin()) return go("board");
+  $("#view").innerHTML = `<div class="as-page" id="asPage">
+    <div class="as-page-h"><span class="as-ic">${SPARK}</span><div><h1 class="grot" style="margin:0;font-size:22px">Assistant</h1>
+      <span class="note">Ask anything about the tracker's videos. Only admins and owners can see this. Answers come from the live data, so they're always current.</span></div>
+      <span style="flex:1"></span><button class="btn" id="asClear">Clear chat</button></div>
+    <div class="as-cols"><div class="panel as-chat"><div class="as-body">${asMsgsHTML()}</div>${asForm("f")}</div>
+      <div class="panel as-side"><div class="panel-h">Try asking</div><div class="as-chips col">${AS_SUGGEST.map(s => `<button type="button" data-q="${esc(s)}">${esc(s)}</button>`).join("")}</div></div></div></div>`;
+  $("#asClear").onclick = () => { AS.msgs = []; asSave(); renderAssistantPage(); };
+  asBind($("#asPage"));
+  setTimeout(() => { const i = $("#asPage .as-in input"); if (i) i.focus(); }, 30);
+}
 
 // ================================================================ start
 (async function start() {
