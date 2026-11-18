@@ -424,7 +424,6 @@
 
 <div id="app" class="hidden">
   <div class="protobar"><b>Prototype</b><span>Sample videos only. Nothing here touches the live tracker.</span><span class="sp"></span>
-    <label for="darkStyle">Dark style</label><select id="darkStyle"><option value="midnight">Midnight</option><option value="graphite">Graphite</option><option value="navy">Navy</option><option value="contrast">High contrast</option></select>
     <label for="viewAs">View as</label><select id="viewAs"></select>
     <button id="resetData" title="Put the sample data back to how it started">Reset sample data</button></div>
   <header>
@@ -677,10 +676,7 @@ function commit(v, next) {
 
 // ---------------------------------------------------------------- theme
 function applyTheme(t) { document.documentElement.dataset.theme = t; }
-document.documentElement.dataset.dark = store.get("ytb_dark") || "midnight";
-$("#darkStyle").value = document.documentElement.dataset.dark;
-$("#darkStyle").onchange = e => { document.documentElement.dataset.dark = e.target.value; store.set("ytb_dark", e.target.value);
-  if (document.documentElement.dataset.theme !== "dark") { store.set("ytb_theme", "dark"); applyTheme("dark"); } toast(`Dark style: ${e.target.selectedOptions[0].text}`); };
+document.documentElement.dataset.dark = "graphite";
 applyTheme(store.get("ytb_theme") || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"));
 function toggleTheme() { const t = document.documentElement.dataset.theme === "dark" ? "light" : "dark"; store.set("ytb_theme", t); applyTheme(t); }
 $("#themeBtn").onclick = toggleTheme; $("#loginTheme").onclick = toggleTheme;
