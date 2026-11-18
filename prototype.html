@@ -348,6 +348,15 @@
   .protobar select { height: 28px; border-radius: 7px; border: 1px solid rgba(255,255,255,.25); background: rgba(255,255,255,.08); color: #fff; padding: 0 8px; font-size: 12px; }
   .protobar select option, .protobar select optgroup { color: #111827; background: #fff; }
   .protobar .sp { flex: 1; }
+  .rolebar { display: inline-flex; gap: 2px; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.2); border-radius: 8px; padding: 2px; }
+  .protobar .rolebar button { border: none; height: 24px; border-radius: 6px; padding: 0 10px; }
+  .protobar .rolebar button.on { background: #fff; color: #1e1b4b; font-weight: 600; }
+  .rolenote { background: #eef2ff; color: #312e81; border-bottom: 1px solid #c7d2fe; padding: 7px 24px; font-size: 12.5px; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+  .rolenote b { font-weight: 600; }
+  [data-theme="dark"] .rolenote { background: #1e1b4b; color: #c7d2fe; border-bottom-color: #312e81; }
+  .rolepick { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+  .rolepick button { height: 32px; padding: 0 12px; white-space: nowrap; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--text); font-size: 12px; cursor: pointer; }
+  .rolepick button:hover { border-color: var(--accent, #6366f1); }
   .protobar button { height: 28px; border-radius: 7px; border: 1px solid rgba(255,255,255,.25); background: none; color: #e0e7ff; padding: 0 10px; cursor: pointer; font-size: 12px; }
   .protobar button:hover { background: rgba(255,255,255,.1); }
 
@@ -419,13 +428,17 @@
     <div class="err" id="loginErr"></div>
     <button class="btn primary" id="loginBtn" style="height:42px;justify-content:center">Sign in</button>
     <div class="note" style="text-align:center">Prototype: any password works. Sample videos only.</div>
+    <div class="note" style="text-align:center;margin-top:6px">Or jump straight into a role's view:</div>
+    <div class="rolepick" id="rolePick"></div>
   </form>
 </div>
 
 <div id="app" class="hidden">
   <div class="protobar"><b>Prototype</b><span>Sample videos only. Nothing here touches the live tracker.</span><span class="sp"></span>
-    <label for="viewAs">View as</label><select id="viewAs"></select>
+    <span>See it as</span><span class="rolebar" id="roleBar" role="group" aria-label="Switch role view"></span>
+    <label for="viewAs">Person</label><select id="viewAs"></select>
     <button id="resetData" title="Put the sample data back to how it started">Reset sample data</button></div>
+  <div class="rolenote" id="roleNote"></div>
   <header>
     <div class="brand grot"><span class="logo" role="img" aria-label="YT4B"></span>YTB Pipeline</div>
     <nav id="nav"></nav>
@@ -689,9 +702,44 @@ function peopleOptions(sel) {
     ["Others", p => !p.tags.some(t => ["owner", "podlead", "cm", "editor"].includes(t))]];
   return groups.map(([g, fn]) => { const L = D.people.filter(fn); return L.length ? `<optgroup label="${g}">${L.map(p => `<option ${p.name === sel ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</optgroup>` : ""; }).join("");
 }
+// ---------------------------------------------------------------- role views (prototype only)
+// One-click previews of what each role sees and can do. Link straight to one with ?as=editor, ?as=cm, ?as=podlead, ?as=admin or ?as=owner.
+const ROLE_VIEWS = [
+  { k: "editor", label: "Editor", pick: p => p.tags.length === 1 && p.tags[0] === "editor",
+    note: "Sees post-production videos only. Can't move cards; can update the fields on videos they're working on (draft link, final link, blocker)." },
+  { k: "cm", label: "Content manager", pick: p => p.tags.includes("cm") && !p.tags.some(t => ["podlead", "admin", "owner"].includes(t)),
+    note: "Runs pre-production: plans videos, moves them up to Handed over, and does Internal review (sends drafts back to Editing or on to Client review)." },
+  { k: "podlead", label: "Pod lead", pick: p => p.tags.includes("podlead") && !p.tags.some(t => ["admin", "owner"].includes(t)),
+    note: "Runs post-production: picks up handed-over videos, assigns editors, moves cards from Not started to Published. Can send a draft into Internal review, not out of it." },
+  { k: "admin", label: "Admin", pick: p => p.tags.includes("admin") && !p.tags.includes("owner"),
+    note: "Can move and edit everything, and sees History (reports) and Activity." },
+  { k: "owner", label: "Owner", pick: p => p.tags.includes("owner"),
+    note: "Everything an admin can do, plus the People page (who has which role)." }];
+function roleOf(p) {
+  if (p.tags.includes("owner")) return "owner";
+  if (p.tags.includes("admin")) return "admin";
+  if (p.tags.includes("podlead")) return "podlead";
+  if (p.tags.includes("cm")) return "cm";
+  return "editor";
+}
+function signInAsRole(k) {
+  const r = ROLE_VIEWS.find(x => x.k === k); if (!r) return false;
+  const p = D.people.find(r.pick); if (!p) { toast(`No ${r.label.toLowerCase()} in the sample data`); return false; }
+  signIn(p); toast(`Viewing as ${r.label.toLowerCase()} (${p.name})`); return true;
+}
+function renderRoleBar() {
+  const cur = roleOf(S.me), r = ROLE_VIEWS.find(x => x.k === cur);
+  $("#roleBar").innerHTML = ROLE_VIEWS.map(x => `<button data-role="${x.k}" class="${x.k === cur ? "on" : ""}" aria-pressed="${x.k === cur}">${x.label}</button>`).join("");
+  $("#roleBar").querySelectorAll("button").forEach(b => b.onclick = () => signInAsRole(b.dataset.role));
+  $("#roleNote").innerHTML = `<b>${esc(r.label)} view</b><span>${esc(r.note)}</span>`;
+  try { const u = new URL(location.href); u.searchParams.set("as", cur); history.replaceState(null, "", u); } catch (e) {}
+}
 function showLogin() {
   $("#app").classList.add("hidden"); $("#login").classList.remove("hidden");
   $("#lwho").innerHTML = `<option value="">Pick your name</option>` + peopleOptions(store.get("ytb_proto_me") || "");
+  $("#rolePick").innerHTML = ROLE_VIEWS.map(x => `<button type="button" data-role="${x.k}">${x.label}</button>`).join("");
+  $("#rolePick").querySelectorAll("button").forEach(b => b.onclick = () => signInAsRole(b.dataset.role));
+  try { const u = new URL(location.href); u.searchParams.delete("as"); history.replaceState(null, "", u); } catch (e) {}
 }
 $("#loginForm").onsubmit = e => {
   e.preventDefault();
@@ -708,6 +756,7 @@ function signIn(p) {
   S.f = { q: "", client: "", person: "", mine: false, overdue: false };
   $("#login").classList.add("hidden"); $("#app").classList.remove("hidden");
   $("#viewAs").innerHTML = peopleOptions(p.name);
+  renderRoleBar();
   S.anim = true; render();
 }
 $("#viewAs").onchange = e => { const p = D.people.find(x => x.name === e.target.value); if (p) { signIn(p); toast(`Viewing as ${p.name}`); } };
@@ -1190,8 +1239,9 @@ addEyes(); new MutationObserver(() => addEyes()).observe(document.body, { childL
 
 // ---------------------------------------------------------------- start
 (function start() {
-  const p = D.people.find(x => x.name === store.get("ytb_proto_signed"));
+  const as = new URLSearchParams(location.search).get("as");
   showLogin();
+  if (as) signInAsRole(as);
 })();
 </script>
 </body>
