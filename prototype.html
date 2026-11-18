@@ -348,6 +348,20 @@
   .protobar select { height: 28px; border-radius: 7px; border: 1px solid rgba(255,255,255,.25); background: rgba(255,255,255,.08); color: #fff; padding: 0 8px; font-size: 12px; }
   .protobar select option, .protobar select optgroup { color: #111827; background: #fff; }
   .protobar .sp { flex: 1; }
+  .lnks { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .lnk { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px; border-radius: 6px; font-size: 11.5px; font-weight: 600; border: 1px solid var(--line); background: var(--surface2); color: var(--text2); cursor: pointer; text-decoration: none; }
+  .lnk:hover { border-color: var(--accent); color: var(--accent); }
+  .lnk.fio { background: #eef0ff; color: #4338ca; border-color: #c7d2fe; }
+  [data-theme="dark"] .lnk.fio { background: #26294a; color: #c3cbff; border-color: #3b3f6b; }
+  .lnk.drv { background: #ecfdf5; color: #047857; border-color: #a7f3d0; }
+  [data-theme="dark"] .lnk.drv { background: #123b30; color: #7ef0c1; border-color: #1f5a4a; }
+  .cmt-ic { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; color: var(--muted); }
+  .url-row { display: flex; gap: 8px; }
+  .url-row .input { flex: 1; }
+  .url-row .open { flex: none; height: 38px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; text-decoration: none; white-space: nowrap; }
+  .url-row .open:hover { border-color: var(--accent); color: var(--accent); }
+  .url-row .open.off { opacity: .4; pointer-events: none; }
+  textarea.input { height: auto; min-height: 80px; padding: 9px 11px; resize: vertical; line-height: 1.45; font: inherit; }
   .chn { display: inline-flex; align-items: center; gap: 6px; vertical-align: middle; }
   .chl { width: 18px; height: 18px; border-radius: 5px; object-fit: contain; flex: none; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; line-height: 1; }
   .rolebar { display: inline-flex; gap: 2px; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.2); border-radius: 8px; padding: 2px; }
@@ -545,7 +559,7 @@ function seedData() {
     const [ch, f] = pick(CHANNELS); const format = f === "S" ? "Short Form" : f === "L" ? "Long Form" : pick(["Long Form", "Short Form"]);
     const v = { id: "V-" + id++, title: TITLES[titleI++ % TITLES.length], client: ch, format, cm: pick(CMS), priority: pick(["Urgent", "High", "Normal", "Normal", "Normal", "Low"]), status,
       shootDate: "", cutDate: "", handoverDate: "", podLead: "", editor: "", coEditors: "", shift: "", assignedDate: "", dueDate: "", firstDraftDate: "", approvedDate: "", uploadedDate: "", publishedDate: "",
-      revisions: 0, blocker: "", finalLink: "", qcResult: "", qcReport: "", delayReason: "", stageDates: {} };
+      revisions: 0, blocker: "", finalLink: "", frameLink: "", comments: "", qcResult: "", qcReport: "", delayReason: "", stageDates: {} };
     // walk the flow forward from a start date and stop at the current stage
     const idx = stIdx(status === "On hold" ? "Editing" : status);
     const gaps = { cutDate: ri(1, 3), handoverDate: ri(0, 2), assignedDate: 0, firstDraftDate: ri(2, 5), approvedDate: ri(2, 6), uploadedDate: ri(0, 2), publishedDate: ri(0, 2) };
@@ -565,6 +579,8 @@ function seedData() {
     if (idx >= stIdx("Revisions")) v.revisions = ri(0, 3);
     if (idx >= stIdx("Internal review")) v.qcResult = rnd() < .15 ? "Failed – fixes needed" : "Passed";
     if (idx > stIdx("Approved") || (idx === stIdx("Approved") && rnd() < .5)) v.finalLink = "https://drive.google.com/";
+    if (idx >= stIdx("Editing") && rnd() < .8) v.frameLink = "https://f.io/" + Math.floor(rnd() * 1e8).toString(36);
+    if (idx >= stIdx("Revisions") && rnd() < .3) v.comments = pick(["Client asked for a punchier hook, reworked the first 10 seconds.", "B-roll for the second half came in late; used stock for two shots.", "Music track needs a licence check before upload.", "Thumbnail text could be bigger, flagged to the CM."]);
     if (status === "On hold") { v.blocker = "Waiting on client approval of script"; }
     else if (rnd() < .12) v.blocker = pick(["Waiting on client feedback", "Missing B-roll", "Script not final"]);
     const fin = v.publishedDate || v.uploadedDate;
@@ -598,7 +614,7 @@ function historyRow(v) {
 }
 
 // ---------------------------------------------------------------- state
-const KEY = "ytb_proto_v4";
+const KEY = "ytb_proto_v5";
 let D; try { D = JSON.parse(store.get(KEY) || "null"); } catch (e) { D = null; }
 if (!D || !D.people) D = seedData();
 const save = () => store.set(KEY, JSON.stringify(D));
@@ -621,7 +637,7 @@ const canCreate = () => isAdmin() || isCM() || isPL();
 const GROUP = { title: "basic", client: "basic", format: "basic", priority: "basic", dueDate: "post",
   cm: "pre", shootDate: "pre", cutDate: "pre", handoverDate: "pre", podLead: "pre",
   editor: "post", coEditors: "post", assignedDate: "post", approvedDate: "post", uploadedDate: "post", publishedDate: "post", qcResult: "post", qcReport: "post", delayReason: "post",
-  firstDraftDate: "ed", revisions: "ed", blocker: "ed", finalLink: "ed", shift: "ed" };
+  firstDraftDate: "ed", revisions: "ed", blocker: "ed", finalLink: "ed", frameLink: "ed", comments: "ed", shift: "ed" };
 function canEdit(v, f) {
   if (isAdmin()) return true;
   const g = GROUP[f];
@@ -681,7 +697,7 @@ function lateLine(v) {
 function log(v, what) { D.log.push({ time: localISO(new Date()) + "T" + new Date().toTimeString().slice(0, 5), who: S.me.name, video: v ? v.title : "", id: v ? v.id : "", what }); }
 const LABEL = { title: "Title", client: "Channel", format: "Format", priority: "Priority", cm: "Content manager", shootDate: "Shoot date", cutDate: "Footage cut date", handoverDate: "Handover date",
   podLead: "Pod lead", editor: "Editor", coEditors: "Also working on it", shift: "Day slot", assignedDate: "Assigned date", dueDate: "Due date", firstDraftDate: "First draft date",
-  approvedDate: "Approved date", uploadedDate: "Upload date", publishedDate: "Publish date", status: "Stage", revisions: "Revisions", blocker: "Blocker", finalLink: "Final file",
+  approvedDate: "Approved date", uploadedDate: "Upload date", publishedDate: "Publish date", status: "Stage", revisions: "Revisions", blocker: "Blocker", finalLink: "Final file", frameLink: "Frame.io link", comments: "Comments",
   qcResult: "QC result", qcReport: "QC report", delayReason: "Delay reason" };
 function diff(a, b) { return Object.keys(LABEL).filter(k => b[k] !== undefined && String(a[k] ?? "") !== String(b[k] ?? "")).map(k => `${LABEL[k]}: ${a[k] || "—"} → ${b[k] || "—"}`).join(" · "); }
 
@@ -889,6 +905,23 @@ function renderBoard() {
   document.querySelectorAll("[data-s]").forEach(b => b.onclick = () => { S.sect = b.dataset.s; S.anim = true; render(); });
   bindBoard();
 }
+// Clickable link chips on cards (cards are buttons, so these are spans that open the link themselves)
+const okUrl = u => /^https?:\/\/\S+$/i.test(String(u || "").trim());
+function linkChips(v) {
+  const L = [];
+  if (okUrl(v.frameLink)) L.push(`<span class="lnk fio" role="link" tabindex="0" data-href="${esc(v.frameLink)}" title="Open in Frame.io">Frame.io ↗</span>`);
+  if (okUrl(v.finalLink)) L.push(`<span class="lnk drv" role="link" tabindex="0" data-href="${esc(v.finalLink)}" title="Open the final file">Drive ↗</span>`);
+  if (String(v.comments || "").trim()) L.push(`<span class="cmt-ic" title="${esc(v.comments)}">💬 Comment</span>`);
+  return L.length ? `<div class="lnks">${L.join("")}</div>` : "";
+}
+document.addEventListener("click", e => {
+  const l = e.target.closest && e.target.closest(".lnk[data-href]");
+  if (l) { e.preventDefault(); e.stopPropagation(); window.open(l.dataset.href, "_blank", "noopener"); }
+}, true);
+document.addEventListener("keydown", e => {
+  const l = e.target.closest && e.target.closest(".lnk[data-href]");
+  if (l && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); e.stopPropagation(); window.open(l.dataset.href, "_blank", "noopener"); }
+}, true);
 function cardHTML(v, i) {
   const movable = canMoveAny(v);
   const pre = isPre(v.status);
@@ -902,7 +935,7 @@ function cardHTML(v, i) {
     <div class="top">${chip("format", v.format, v.format === "Short Form" ? "Short" : "Long")}${chip("priority", v.priority)}${!pre && v.shift ? chip("shift", v.shift) : ""}
       <span style="margin-left:auto;display:inline-flex;gap:6px;align-items:center;color:var(--muted);font-size:11px">${mine(v) ? `<span class="mine-dot" title="You're on this video"></span>` : ""}${movable ? "" : LOCK}</span></div>
     <div class="t">${esc(v.title)}</div>${lateLine(v)}
-    <div class="ch">${chName(v.client)}${dateLine ? ` · ${dateLine}` : ""}</div>
+    <div class="ch">${chName(v.client)}${dateLine ? ` · ${dateLine}` : ""}</div>${pre ? "" : linkChips(v)}
     ${v.blocker ? `<div class="note">⏸ ${esc(v.blocker)}</div>` : ""}
     ${people}
     ${v.qcResult === "Failed – fixes needed" ? `<div class="qcflag">QC failed: fixes needed</div>` : ""}</button>`;
@@ -960,7 +993,7 @@ function renderTable() {
   const cols = [["Video", v => `<b style="font-weight:600">${esc(v.title)}</b>${lateLine(v)}<div class="note mono">${v.id}</div>`, "wrap"], ["Stage", v => chip("status", v.status)], ["Channel", v => chName(v.client)]]
     .concat(pre ? [["CM", v => esc(v.cm)], ["Shoot", v => fmtDate(v.shootDate)], ["Cut", v => fmtDate(v.cutDate)], ["Handover", v => fmtDate(v.handoverDate)]] : [])
     .concat([["Pod lead", v => esc(v.podLead)], ["Editor", v => esc(editorsOf(v).join(" + "))], ["Day slot", v => chip("shift", v.shift)], ["Due", v => fmtDate(v.dueDate)],
-      ["First draft", v => fmtDate(v.firstDraftDate)], ["Approved", v => fmtDate(v.approvedDate)], ["Rev.", v => esc(v.revisions)], ["Delay reason", v => esc(v.delayReason), "wrap"]]);
+      ["First draft", v => fmtDate(v.firstDraftDate)], ["Approved", v => fmtDate(v.approvedDate)], ["Rev.", v => esc(v.revisions)], ["Links", v => linkChips({ frameLink: v.frameLink, finalLink: v.finalLink, comments: v.comments }).replace('class="lnks"', 'class="lnks" style="margin:0;flex-wrap:nowrap"')], ["Delay reason", v => esc(v.delayReason), "wrap"]]);
   $("#view").innerHTML = `<div class="panel">${T.length ? `<div class="tbl-wrap"><table><thead><tr>${cols.map(c => `<th style="cursor:default">${c[0]}</th>`).join("")}</tr></thead>
     <tbody>${T.map((v, i) => `<tr class="click ${isOverdue(v) ? "overdue" : ""}" style="--i:${Math.min(i, 30)}" data-id="${v.id}">${cols.map(c => `<td class="${c[2] || ""}">${c[1](v) || ""}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`
     : `<div class="loading">No videos match these filters.</div>`}</div>`;
@@ -979,6 +1012,7 @@ function openVideo(v, preset) {
   const sel = (id, arr, val, ph) => `<select class="input" id="m_${id}" ${dis(id)}><option value="">${ph || "Select"}</option>${(arr || []).map(o => `<option ${o === val ? "selected" : ""}>${esc(o)}</option>`).join("")}${val && !(arr || []).includes(val) ? `<option selected>${esc(val)}</option>` : ""}</select>`;
   const dsel = (id, kind, arr, val, ph) => `<div class="dsel ${val ? "has" : ""}"><i id="m_${id}_dot" style="background:${val ? colorFor(kind, val) : "transparent"}"></i>${sel(id, arr, val, ph)}</div>`;
   const inp = (id, type, val, extra = "") => `<input class="input" id="m_${id}" type="${type}" value="${esc(val ?? "")}" ${dis(id)} ${extra}>`;
+  const urlInp = (id, val, ph) => `<div class="url-row">${inp(id, "url", val, `placeholder="${ph}"`)}<a class="open ${okUrl(val) ? "" : "off"}" id="m_${id}_open" href="${okUrl(val) ? esc(val) : "#"}" target="_blank" rel="noopener">Open ↗</a></div>`;
   const lab = (id, text) => `<label for="m_${id}">${text}${ro(id) ? "" : (isReq(id) ? " *" : "")}</label>`;
   function isReq(f) { return missing({ ...w, [f]: "" }).some(m => m[0] === f); }
   // Stage options this person may pick
@@ -1014,6 +1048,7 @@ function openVideo(v, preset) {
         <div class="field">${lab("editor", "Main editor")}${sel("editor", EDITORS.concat(PODLEADS), w.editor)}</div>
         <div class="field">${lab("shift", "Day slot")}${dsel("shift", "shift", Object.keys(SHIFT_C), w.shift)}</div>
         <div class="field full"><label>Also working on it <small>(optional)</small></label><div class="cobox" id="p_co"></div></div>
+        <div class="field full">${lab("frameLink", "Frame.io link")}${urlInp("frameLink", w.frameLink, "https://f.io/…")}</div>
       </div>
       <div class="tm-grid four">
         <div class="field">${lab("assignedDate", "Assigned")}${inp("assignedDate", "date", w.assignedDate)}</div>
@@ -1027,10 +1062,14 @@ function openVideo(v, preset) {
       <div class="tm-sec">Delivery &amp; QC</div>
       <div class="tm-grid">
         <div class="field full">${lab("blocker", "Blocker / waiting on")}${inp("blocker", "text", w.blocker, 'placeholder="e.g. Waiting on client feedback"')}</div>
-        <div class="field full">${lab("finalLink", "Final file link")}${inp("finalLink", "url", w.finalLink, 'placeholder="https://drive.google.com/…"')}</div>
+        <div class="field full">${lab("finalLink", "Final file link")}${urlInp("finalLink", w.finalLink, "https://drive.google.com/…")}</div>
         <div class="field">${lab("qcResult", "QC result")}${dsel("qcResult", "qc", Object.keys(QC_C), w.qcResult, "Not checked yet")}</div>
         <div class="field">${lab("qcReport", "QC report link")}${inp("qcReport", "url", w.qcReport, 'placeholder="https://…"')}</div>
         ${w.delayReason || isLate(w) ? `<div class="field full">${lab("delayReason", "Reason for delay")}${inp("delayReason", "text", w.delayReason, 'placeholder="Asked for when the video is past its due date"')}</div>` : ""}
+      </div>
+      <div class="tm-sec">Comments <span class="who-owns">· optional</span></div>
+      <div class="tm-grid">
+        <div class="field full"><label for="m_comments">Feedback, comments or opinions <small>(optional)</small></label><textarea class="input" id="m_comments" rows="3" placeholder="Anything worth noting about this video: feedback, a problem you hit, an idea…" ${dis("comments")}>${esc(w.comments || "")}</textarea></div>
       </div>
     </div>
     <div class="modal-f">${!isNew && isAdmin() ? `<button class="btn danger" id="mdel">Delete</button>` : ""}${viewOnly ? "" : `<span class="tm-req">* required</span>`}<span class="err" id="merr" style="flex:1;text-align:right"></span>
@@ -1063,12 +1102,13 @@ function openVideo(v, preset) {
   };
   drawCo(); $("#m_editor").addEventListener("change", drawCo);
   $("#modalRoot").addEventListener("input", e => e.target.classList.remove("miss"));
+  ["frameLink", "finalLink"].forEach(k => { const el = $("#m_" + k), a = $("#m_" + k + "_open"); if (el && a) el.addEventListener("input", () => { const ok = okUrl(el.value); a.classList.toggle("off", !ok); a.href = ok ? el.value.trim() : "#"; }); });
   $("#modalRoot").addEventListener("change", e => e.target.classList.remove("miss"));
   if (isNew === false && preset && preset.status) { const k = STAGE_DATE[preset.status]; if (k && $("#m_" + k) && !$("#m_" + k).value && !$("#m_" + k).disabled) $("#m_" + k).value = TODAY; }
   if (isNew === false && preset && preset.status) setTimeout(() => missing({ ...w, ...(STAGE_DATE[preset.status] && !w[STAGE_DATE[preset.status]] ? { [STAGE_DATE[preset.status]]: TODAY } : {}) }).forEach(([k], i) => { const el = $("#m_" + k); if (el) { el.classList.add("miss"); if (i === 0) el.focus(); } }), 40);
   if ($("#msave")) $("#msave").onclick = () => {
     const F = ["title", "client", "format", "priority", "status", "cm", "podLead", "shootDate", "cutDate", "handoverDate", "editor", "shift", "assignedDate", "dueDate", "firstDraftDate", "revisions",
-      "approvedDate", "uploadedDate", "publishedDate", "blocker", "finalLink", "qcResult", "qcReport", "delayReason"];
+      "approvedDate", "uploadedDate", "publishedDate", "blocker", "finalLink", "frameLink", "qcResult", "qcReport", "delayReason", "comments"];
     const ch = {};
     F.forEach(k => { const el = $("#m_" + k); if (el && !el.disabled) ch[k] = k === "revisions" ? (Number(el.value) || 0) : el.value.trim(); });
     if (!coRO) ch.coEditors = CO.join(", ");
