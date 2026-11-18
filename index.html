@@ -360,6 +360,10 @@
   .as-chat { display: flex; flex-direction: column; height: calc(100vh - 210px); min-height: 420px; }
   .as-chat .as-m { max-width: 75%; font-size: 13.5px; }
   @media (max-width: 900px) { .as-cols { grid-template-columns: 1fr; } .as-side { display: none; } }
+  .chn { display: inline-flex; align-items: center; gap: 6px; vertical-align: middle; min-width: 0; }
+  .chl { width: 18px; height: 18px; border-radius: 5px; object-fit: contain; flex: none; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; line-height: 1; letter-spacing: .02em; }
+  .chl.big { width: 32px; height: 32px; border-radius: 8px; font-size: 12px; }
+  .logo-cell { display: flex; align-items: center; gap: 8px; }
 </style>
 </head>
 <body>
@@ -513,8 +517,59 @@ async function api(action, payload = {}) {
 }
 // Keeps the last board on this laptop so returning visits open instantly, then refreshes it
 function applyData(d, fromCache) {
-  S.editors = d.editors; S.lists = d.lists; S.tasks = d.tasks; S.today = d.today || localISO(new Date()); S.me = d.me || S.me;
+  S.editors = d.editors; S.lists = d.lists; S.tasks = d.tasks; S.today = d.today || localISO(new Date()); S.me = d.me || S.me; S.logos = d.logos || S.logos || {};
   if (!fromCache) { S.lastSync = new Date(); if (!S.demo) { const c = { ...d }; delete c.token; store.set("ytb_cache", JSON.stringify(c)); } }
+}
+// ---------- channel logos ----------
+// A channel shows its uploaded logo; channels without one get a coloured tile with their initials.
+const LOGO_TILES = ["#EEEDFE:#3C3489", "#E1F5EE:#085041", "#FAECE7:#712B13", "#E6F1FB:#0C447C", "#FBEAF0:#72243E", "#FAEEDA:#633806", "#EAF3DE:#27500A"];
+function chInitials(n) { const w = String(n).trim().split(/\s+/); return (w.length > 1 ? w[0][0] + w[1][0] : String(n).trim().slice(0, 2)).toUpperCase(); }
+function chLogo(n, big) {
+  if (!n || !String(n).trim()) return "";
+  const cls = "chl" + (big ? " big" : ""), src = (S.logos || {})[String(n).trim().toLowerCase()];
+  if (src) return `<img class="${cls}" src="${src}" alt="" aria-hidden="true">`;
+  let h = 0; for (const c of String(n)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  const [bg, fg] = LOGO_TILES[h % LOGO_TILES.length].split(":");
+  return `<span class="${cls} ini" style="background:${bg};color:${fg}" aria-hidden="true">${esc(chInitials(n))}</span>`;
+}
+function chName(n) { return n ? `<span class="chn">${chLogo(n)}${esc(n)}</span>` : ""; }
+// Trims empty edges, fits the image in a small square and keeps it under the size the sheet can store
+async function shrinkLogo(file) {
+  const url = URL.createObjectURL(file), img = new Image();
+  try {
+    await new Promise((ok, no) => { img.onload = ok; img.onerror = () => no(new Error("Couldn't read that image. Use a PNG, JPG, WebP or SVG.")); img.src = url; });
+    const W = Math.min(img.naturalWidth || 512, 512), H = Math.round(W * (img.naturalHeight || 512) / (img.naturalWidth || 512));
+    const big = document.createElement("canvas"); big.width = W; big.height = H;
+    const bx = big.getContext("2d"); bx.drawImage(img, 0, 0, W, H);
+    let x0 = W, y0 = H, x1 = -1, y1 = -1;
+    try { const px = bx.getImageData(0, 0, W, H).data;
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (px[(y * W + x) * 4 + 3] > 16) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    } catch (e) {}
+    if (x1 < 0) { x0 = 0; y0 = 0; x1 = W - 1; y1 = H - 1; }
+    const sw = x1 - x0 + 1, sh = y1 - y0 + 1;
+    for (const size of [64, 48, 40]) {
+      const c = document.createElement("canvas"); c.width = c.height = size;
+      const cx = c.getContext("2d"); cx.imageSmoothingQuality = "high";
+      const k = Math.min(size / sw, size / sh), w = sw * k, h = sh * k;
+      cx.drawImage(big, x0, y0, sw, sh, (size - w) / 2, (size - h) / 2, w, h);
+      for (const [type, q] of [["image/png"], ["image/webp", 0.9], ["image/webp", 0.75]]) {
+        const d = c.toDataURL(type, q);
+        if (d.startsWith("data:" + type) && d.length <= 8000) return d;
+      }
+    }
+    throw new Error("That logo is too detailed to shrink. Try a simpler image.");
+  } finally { URL.revokeObjectURL(url); }
+}
+function pickLogo(name, done) {
+  name = String(name || "").trim();
+  if (!name) return toast("Type the channel name first", true);
+  const inp = document.createElement("input"); inp.type = "file"; inp.accept = "image/png,image/jpeg,image/webp,image/svg+xml";
+  inp.onchange = async () => {
+    const f = inp.files[0]; if (!f) return;
+    try { const data = await shrinkLogo(f); const r = await api("setLogo", { channel: name, data }); S.logos = r.logos; toast("Logo saved for " + name); done && done(); }
+    catch (e) { toast(e.message, true); }
+  };
+  inp.click();
 }
 async function load(silent) {
   try {
@@ -695,7 +750,7 @@ function cardHTML(t, i) {
       ${Number(t.revisions) ? `<span class="tag plain" title="Revisions" style="margin-left:auto">R${esc(t.revisions)}</span>` : ""}</div>
     <div class="t">${esc(t.title)}</div>
     ${lateLine(t)}
-    <div class="ch">${esc(t.client || "No channel")}${t.shift ? ` · ${shiftTag(t)}` : ""}</div>
+    <div class="ch">${t.client ? chName(t.client) : "No channel"}${t.shift ? ` · ${shiftTag(t)}` : ""}</div>
     ${t.blocker ? `<div class="note">⏸ ${esc(t.blocker)}</div>` : ""}
     <div class="foot"><span class="avs">${editorsOf(t).map(e => `<span class="av" title="${esc(e)}">${initials(e)}</span>`).join("")}</span><span style="font-size:12px;color:var(--text2);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(editorsOf(t).join(" + "))}</span><span style="margin-left:auto;flex:none">${dueTag(t)}</span></div>
     ${qcFailed(t) ? `<div class="qcflag">QC failed: fixes needed</div>` : t.qcResult === "Passed" ? `<div>${chip("qc", "Passed", "QC passed")}</div>` : ""}
@@ -735,7 +790,7 @@ function renderTable() {
   $("#view").innerHTML = `<div class="panel">${T.length ? `<div class="tbl-wrap"><table>
     <thead><tr>${cols.map(([k, l]) => `<th data-sort="${k}" class="${k === "revisions" ? "num" : ""}">${l}${arrow(k)}</th>`).join("")}</tr></thead>
     <tbody>${T.map((t, i) => `<tr class="click ${isOverdue(t) ? "overdue" : ""} ${isDone(t) ? "done" : ""}" style="--i:${Math.min(i, 30)}" data-key="${esc(t.editor)}|${t.row}">
-      <td class="wrap"><b style="font-weight:600">${esc(t.title)}</b>${lateLine(t)}</td><td>${esc(editorsOf(t).join(" + "))}</td><td>${esc(t.client)}</td><td>${fmtTag(t.format)}</td><td>${esc(t.assignedBy)}</td>
+      <td class="wrap"><b style="font-weight:600">${esc(t.title)}</b>${lateLine(t)}</td><td>${esc(editorsOf(t).join(" + "))}</td><td>${chName(t.client)}</td><td>${fmtTag(t.format)}</td><td>${esc(t.assignedBy)}</td>
       <td>${chip("priority", t.priority)}</td><td>${shiftTag(t)}</td><td>${fmtDate(t.assignedDate)}</td><td>${fmtDate(t.dueDate)} ${isOverdue(t) || isDueSoon(t) ? dueTag(t) : ""}</td>
       <td>${fmtDate(t.firstDraftDate)}</td><td>${fmtDate(t.deliveredDate)}</td>
       <td onclick="event.stopPropagation()"><select class="status colored" aria-label="Status" data-key="${esc(t.editor)}|${t.row}" style="--c:${colorFor("status", t.status)}">
@@ -796,9 +851,9 @@ function renderAdmin() {
       <div class="side" style="display:flex;flex-direction:column;gap:18px">
         <div class="panel"><div class="panel-h"><span style="width:8px;height:8px;border-radius:50%;background:var(--red)"></span>Needs attention <small>most overdue</small></div>
           ${late.length ? late.map(t => `<div class="att" data-key="${esc(t.editor)}|${t.row}"><div class="row1"><b>${esc(t.title)}</b>${dueTag(t)}</div>${lateLine(t)}
-            <div class="row2"><span>${esc(editorsOf(t).join(" + "))}</span>·<span>${esc(t.client)}</span>·<span>${esc(t.status)}</span>${fmtTag(t.format)}</div></div>`).join("") : `<div class="pad note">Nothing overdue. 🎉</div>`}</div>
+            <div class="row2"><span>${esc(editorsOf(t).join(" + "))}</span>·<span>${chName(t.client)}</span>·<span>${esc(t.status)}</span>${fmtTag(t.format)}</div></div>`).join("") : `<div class="pad note">Nothing overdue. 🎉</div>`}</div>
         <div class="panel"><div class="panel-h">By channel <small>active · overdue · delivered this month</small></div>
-          ${chans.length ? `<div class="tbl-wrap"><table><tbody>${chans.map(c => `<tr class="click" data-ch="${esc(c.c)}"><td>${esc(c.c)}</td><td class="num mono">${c.a}</td><td class="num mono">${c.od ? `<span class="tag late">${c.od}</span>` : n(0)}</td><td class="num mono">${n(c.d)}</td></tr>`).join("")}</tbody></table></div>` : `<div class="pad note">No videos yet.</div>`}</div>
+          ${chans.length ? `<div class="tbl-wrap"><table><tbody>${chans.map(c => `<tr class="click" data-ch="${esc(c.c)}"><td>${chName(c.c)}</td><td class="num mono">${c.a}</td><td class="num mono">${c.od ? `<span class="tag late">${c.od}</span>` : n(0)}</td><td class="num mono">${n(c.d)}</td></tr>`).join("")}</tbody></table></div>` : `<div class="pad note">No videos yet.</div>`}</div>
       </div>
     </div>`;
   bindAdminSwitch();
@@ -1014,8 +1069,9 @@ function renderSettings() {
         </form></div>
 
       <div class="panel full"><div class="panel-h">Channels &amp; formats <small>the Channel dropdown, and which formats each channel makes</small></div>
-        <div class="tbl-wrap"><table><thead><tr><th style="cursor:default">Channel</th>${formats.map(f => `<th style="cursor:default">${esc(f)}</th>`).join("")}<th style="cursor:default"></th></tr></thead><tbody>
+        <div class="tbl-wrap"><table><thead><tr><th style="cursor:default">Channel</th><th style="cursor:default">Logo</th>${formats.map(f => `<th style="cursor:default">${esc(f)}</th>`).join("")}<th style="cursor:default"></th></tr></thead><tbody>
           ${D.channels.map((c, i) => `<tr><td style="padding:6px 12px"><input class="input" data-ch="${i}" value="${esc(c.name)}" style="height:34px" aria-label="Channel name"></td>
+            <td><div class="logo-cell">${chLogo(c.name, true)}<button class="btn small" data-chlogo="${i}">${(S.logos || {})[c.name.trim().toLowerCase()] ? "Change" : "Upload"}</button>${(S.logos || {})[c.name.trim().toLowerCase()] ? `<button class="btn small" data-chlogorm="${i}" aria-label="Remove logo for ${esc(c.name)}">Remove</button>` : ""}</div></td>
             ${formats.map(f => `<td><label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" data-chf="${i}" data-f="${esc(f)}" ${c.formats.includes(f) ? "checked" : ""}>${chip("format", f, f === "Short Form" ? "Short" : "Long")}</label></td>`).join("")}
             <td style="text-align:right"><button class="btn small danger" data-chdel="${i}" aria-label="Remove ${esc(c.name)}">Remove</button></td></tr>`).join("")}
         </tbody></table></div>
@@ -1069,6 +1125,11 @@ function renderSettings() {
   document.querySelectorAll("[data-ch]").forEach(i => i.oninput = () => { D.channels[+i.dataset.ch].name = i.value; });
   document.querySelectorAll("[data-ch]").forEach(i => i.onchange = redraw);
   document.querySelectorAll("[data-chf]").forEach(cb => cb.onchange = () => { const c = D.channels[+cb.dataset.chf]; c.formats = formats.filter(f => f === cb.dataset.f ? cb.checked : c.formats.includes(f)); redraw(); });
+  document.querySelectorAll("[data-chlogo]").forEach(b => b.onclick = () => pickLogo(D.channels[+b.dataset.chlogo].name, redraw));
+  document.querySelectorAll("[data-chlogorm]").forEach(b => b.onclick = async () => {
+    const n = D.channels[+b.dataset.chlogorm].name.trim();
+    try { const r = await api("setLogo", { channel: n, data: "" }); S.logos = r.logos; toast("Logo removed for " + n); redraw(); } catch (e) { toast(e.message, true); }
+  });
   document.querySelectorAll("[data-chdel]").forEach(b => b.onclick = () => { D.channels.splice(+b.dataset.chdel, 1); redraw(); });
   $("#addCh").onclick = () => { D.channels.push({ name: "", formats: [formats[0]] }); redraw(); const ins = document.querySelectorAll("[data-ch]"); ins[ins.length - 1].focus(); };
   document.querySelectorAll("[data-as]").forEach(i => { i.oninput = () => { D.assigners[+i.dataset.as] = i.value; }; i.onchange = redraw; });
@@ -1308,7 +1369,7 @@ const Demo = (() => {
   const titles = ["10 Mistakes First-Time Home Buyers Make", "Full Kitchen Renovation Walkthrough", "SIP vs Lump Sum Explained", "Podcast Ep. 42 — Long-form cut", "iPhone vs Pixel: 6 Months Later",
     "How We Grew to 1M Subscribers", "Weekly Market Recap", "Tax Saving Mistakes to Avoid", "Founder Story: Behind the Brand", "Google I/O Recap for Developers", "Mutual Funds Explained Simply", "Day in the Life of a Pilot"];
   let seed = 11; const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280; const pick = a => a[Math.floor(rnd() * a.length)];
-  const today = localISO(new Date()); const tasks = [];
+  const today = localISO(new Date()); const tasks = []; const logos = {};
   editors.forEach(ed => { const n = 2 + Math.floor(rnd() * 4); for (let i = 0; i < n; i++) {
     const status = pick(["Scripting", "Editing", "Editing", "Internal review", "Revisions", "Client review", "Approved", "Delivered", "Delivered", "Not started", "On hold"]);
     const a = -Math.floor(rnd() * 14) - 1, due = a + 5 + Math.floor(rnd() * 8); const cf = pick(channelFormats);
@@ -1343,14 +1404,15 @@ const Demo = (() => {
       const em = p.email || "someone@ytforbrands.com";
       me = p.mode === "admin" ? (p.password === "owner" || /^saajid@/.test(em) ? { name: "Saajid", email: em, role: "owner", super: true, account: true } : { name: em, email: em, role: "admin", tag: "admin" })
         : { name: em, email: em, role: "member", tag: /manager|cm/.test(p.password) ? "cm" : "editor" };
-      return { ok: true, token: "demo", editors: editors.slice(), lists, tasks: tasks.map(t => ({ ...t })), today, me };
+      return { ok: true, token: "demo", editors: editors.slice(), lists, tasks: tasks.map(t => ({ ...t })), logos: { ...logos }, today, me };
     }
     if (action === "activity") return { ok: true, items: log.slice().reverse(), total: log.length };
     if (action === "settings") return settingsOut();
+    if (action === "setLogo") { const k = String(p.channel || "").trim().toLowerCase(); if (p.data) logos[k] = p.data; else delete logos[k]; return { ok: true, logos: { ...logos } }; }
     if (action === "saveLists") { if (p.statuses) lists.status = p.statuses.slice(); lists.clients = p.channels.map(c => c.name); lists.assigners = p.assigners.slice(); lists.channelFormats = []; p.channels.forEach(c => c.formats.forEach(f => lists.channelFormats.push({ channel: c.name, format: f }))); return settingsOut(); }
     if (action === "addEditor") { if (editors.includes(p.editor)) throw new Error("An editor tab with that name already exists"); editors.push(p.editor); return settingsOut(); }
     if (action === "signOutAll") return { ok: true };
-    if (action === "getAll") return { ok: true, editors, lists, tasks: tasks.map(t => ({ ...t })), today, me };
+    if (action === "getAll") return { ok: true, editors, lists, tasks: tasks.map(t => ({ ...t })), logos: { ...logos }, today, me };
     if (action === "logout") return { ok: true };
     if (action === "add") { tasks.push({ ...p.task, editor: p.editor, row: nextRow(p.editor) }); L(p.editor, p.task.title, "Added video"); return { ok: true }; }
     if (action === "users") return { ok: true, users };
@@ -1545,7 +1607,7 @@ async function asAnswer(raw) {
   }
   if (ch) {
     const by = {}; T.filter(t => !isDone(t)).forEach(t => by[t.status] = (by[t.status] || 0) + 1);
-    return { html: `<b>${esc(ch)}</b>: ${T.filter(t => !isDone(t)).length} open, ${T.filter(isOverdue).length} overdue, ${T.filter(isDone).length} delivered.${asTable(Object.entries(by).map(([s, n]) => [esc(s), n]), ["Stage", "Videos"])}` };
+    return { html: `<b>${chName(ch)}</b>: ${T.filter(t => !isDone(t)).length} open, ${T.filter(isOverdue).length} overdue, ${T.filter(isDone).length} delivered.${asTable(Object.entries(by).map(([s, n]) => [esc(s), n]), ["Stage", "Videos"])}` };
   }
 
   if (/\b(how many|total|count|number)\b/.test(q)) {
