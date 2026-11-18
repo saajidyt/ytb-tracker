@@ -345,11 +345,11 @@
     </div>
     <div class="seg" role="tablist" aria-label="Sign-in type">
       <button type="button" class="on" data-mode="team" role="tab">Team</button>
-      <button type="button" data-mode="admin" role="tab">Admin / Owner</button>
+      <button type="button" data-mode="admin" role="tab">Admin</button>
     </div>
-    <div class="field" id="whoField"><label for="lwho">Your name</label><select class="input" id="lwho" autocomplete="off"><option value="">Loading names…</option></select></div>
-    <div class="field hidden" id="nameField"><label for="lname">Your name</label><input class="input" id="lname" autocomplete="username" placeholder="e.g. Saajid"></div>
-    <div class="field"><label for="lpw" id="pwLabel">Team password</label><input class="input" type="password" id="lpw" autocomplete="current-password"></div>
+    <div class="field"><label for="lemail">Email</label><input class="input" id="lemail" type="email" autocomplete="username" placeholder="name@ytforbrands.com"></div>
+    <div class="field"><label for="lpw">Password</label><input class="input" type="password" id="lpw" autocomplete="current-password"></div>
+    <div class="note" id="loginHint">Editors and content managers: use your team's password.</div>
     <div class="err" id="loginErr"></div>
     <button class="btn primary" id="loginBtn" style="height:42px;justify-content:center">Sign in</button>
 
@@ -369,7 +369,7 @@
       <span class="knob"></span></button>
     <div class="me"><button class="icon-btn" id="meBtn" aria-label="Account menu"><span class="av" id="meAv"></span></button><div class="menu hidden" id="meMenu"></div></div>
   </header>
-  <div class="demo hidden" id="demoBar">Demo mode: sample data, nothing is saved. Any password works; sign in with a name to see the owner pages.</div>
+  <div class="demo hidden" id="demoBar">Demo mode: sample data, nothing is saved. Any password works; on the Admin tab, a saajid@ email opens the owner pages.</div>
   <div class="toolbar hidden" id="toolbar"></div>
   <main id="view"><div class="loading">Loading…</div></main>
 </div>
@@ -470,15 +470,19 @@ async function api(action, payload = {}) {
   if (!data.ok) { const e = new Error(data.error || "Request failed"); e.auth = data.auth === false; throw e; }
   return data;
 }
+// Keeps the last board on this laptop so returning visits open instantly, then refreshes it
+function applyData(d, fromCache) {
+  S.editors = d.editors; S.lists = d.lists; S.tasks = d.tasks; S.today = d.today || localISO(new Date()); S.me = d.me || S.me;
+  if (!fromCache) { S.lastSync = new Date(); if (!S.demo) { const c = { ...d }; delete c.token; store.set("ytb_cache", JSON.stringify(c)); } }
+}
 async function load(silent) {
   try {
     const d = await api("getAll");
-    S.editors = d.editors; S.lists = d.lists; S.tasks = d.tasks; S.today = d.today || localISO(new Date()); S.me = d.me || S.me;
-    S.lastSync = new Date();
+    applyData(d);
     if (!S.modalOpen && !(silent && document.activeElement && ["INPUT", "SELECT"].includes(document.activeElement.tagName) && $("#app").contains(document.activeElement))) render();
     return true;
   } catch (e) {
-    if (e.auth) { logout(true); $("#loginErr").textContent = "Your session ended. Please sign in again."; return false; }
+    if (e.auth) { logout(true); $("#loginErr").textContent = "Please sign in again (the password for your role was changed, or everyone was signed out)."; return false; }
     if (!silent) toast(e.message, true);
     return false;
   }
@@ -489,43 +493,32 @@ let loginMode = "team";
 document.querySelectorAll(".seg [data-mode]").forEach(b => b.onclick = () => {
   loginMode = b.dataset.mode;
   document.querySelectorAll(".seg [data-mode]").forEach(x => x.classList.toggle("on", x === b));
-  $("#nameField").classList.toggle("hidden", loginMode === "team");
-  $("#whoField").classList.toggle("hidden", loginMode !== "team");
-  $("#pwLabel").textContent = loginMode === "team" ? "Team password" : "Your password";
+  $("#loginHint").textContent = loginMode === "team" ? "Editors and content managers: use your team's password." : "Admins: use the admin password. Owners: use your own password.";
   $("#loginErr").textContent = "";
-  (loginMode === "team" ? $("#lwho") : $("#lname")).focus();
+  ($("#lemail").value ? $("#lpw") : $("#lemail")).focus();
 });
-async function loadNames() {
-  try {
-    const r = await api("names");
-    const last = store.get("ytb_who") || "";
-    const o = n => `<option ${n === last ? "selected" : ""}>${esc(n)}</option>`;
-    $("#lwho").innerHTML = `<option value="">Pick your name</option><optgroup label="Editors">${r.editors.map(o).join("")}</optgroup>`
-      + ((r.leads || []).filter(l => !r.editors.includes(l)).length ? `<optgroup label="Pod leads">${r.leads.filter(l => !r.editors.includes(l)).map(o).join("")}</optgroup>` : "");
-  } catch (e) { $("#lwho").innerHTML = `<option value="">Couldn't load names — refresh the page</option>`; }
-}
+$("#lemail").value = store.get("ytb_email") || "";
 $("#loginForm").addEventListener("submit", async e => {
   e.preventDefault();
-  const name = loginMode === "admin" ? $("#lname").value.trim() : "";
-  if (loginMode === "admin" && !name) { $("#loginErr").textContent = "Enter your name."; return; }
-  const who = loginMode === "team" ? $("#lwho").value : "";
-  if (loginMode === "team" && !who) { $("#loginErr").textContent = "Pick your name first."; return; }
+  const email = $("#lemail").value.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { $("#loginErr").textContent = "Enter your email address."; $("#lemail").focus(); return; }
+  if (!$("#lpw").value) { $("#loginErr").textContent = "Enter the password."; $("#lpw").focus(); return; }
   $("#loginErr").textContent = ""; $("#loginBtn").disabled = true; $("#loginBtn").textContent = "Signing in…";
   try {
-    const r = await api("login", loginMode === "team" ? { who, password: $("#lpw").value } : { name, password: $("#lpw").value });
-    if (who) store.set("ytb_who", who);
-    S.token = r.token; S.me = { name: r.name, role: r.role, super: !!r.super };
-    store.set("ytb_token", r.token);
+    // One request signs in and brings the whole board back with it
+    const r = await api("login", { mode: loginMode, email, password: $("#lpw").value });
+    store.set("ytb_email", email);
+    S.token = r.token; store.set("ytb_token", r.token);
+    applyData(r);
     $("#lpw").value = ""; $("#lpw").type = "password"; const eb = $("#lpw").parentNode.querySelector(".pw-eye"); if (eb) eb.innerHTML = EYE;
     S.view = isAdmin() ? "admin" : "board";
-    if (await load()) showApp();
+    showApp();
   } catch (err) { $("#loginErr").textContent = err.message === "Failed to fetch" ? "Can't reach the tracker right now." : err.message; }
   $("#loginBtn").disabled = false; $("#loginBtn").textContent = "Sign in";
 });
 function showApp() { $("#login").classList.add("hidden"); $("#app").classList.remove("hidden"); S.anim = true; render(); }
 function logout(silent) {
-  if (!silent && S.token && !S.demo) api("logout").catch(() => {});
-  store.del("ytb_token"); S.token = ""; S.me = null; S.users = null;
+  store.del("ytb_token"); store.del("ytb_cache"); S.token = ""; S.me = null; S.users = null;
   $("#app").classList.add("hidden"); $("#login").classList.remove("hidden"); $("#meMenu").classList.add("hidden");
 }
 
@@ -548,9 +541,10 @@ function renderHeader() {
   $("#kpis").innerHTML = k.map(([n, l, c, p]) => `<button class="kpi" data-p="${p}" title="${n} ${l}"><b style="color:${c}">${n}</b><span>${l}</span></button>`).join("");
   document.querySelector("header").classList.toggle("wide", views.length > 3);
   $("#kpis").querySelectorAll(".kpi").forEach(b => b.onclick = () => openPreset(b.dataset.p));
-  $("#meAv").textContent = initials(S.me ? S.me.name : "?");
-  $("#meMenu").innerHTML = `<div class="who"><b>${esc(S.me?.name)}</b><small>${esc(S.me?.role === "member" ? "Team member" : S.me?.super ? "Main owner" : S.me?.role)}</small></div>
-    ${isAdmin() ? `<button id="mPw">Change my password</button>` : ""}
+  $("#meAv").textContent = initials(S.me ? (S.me.account ? S.me.name : String(S.me.email || S.me.name).split("@")[0].replace(/[._-]+/g, " ")) : "?");
+  const roleLabel = S.me?.super ? "Main owner" : S.me?.role === "owner" ? "Owner" : S.me?.role === "admin" ? "Admin" : S.me?.tag === "cm" ? "Content manager" : "Editor";
+  $("#meMenu").innerHTML = `<div class="who"><b>${esc(S.me?.email || S.me?.name)}</b><small>${esc(roleLabel)}</small></div>
+    ${S.me?.account ? `<button id="mPw">Change my password</button>` : ""}
     <button id="mOut">Sign out</button>`;
   if ($("#mPw")) $("#mPw").onclick = () => { $("#meMenu").classList.add("hidden"); openPasswordModal(); };
   $("#mOut").onclick = () => logout();
@@ -904,11 +898,11 @@ function renderAccess() {
   const U = S.users;
   $("#view").innerHTML = `
     <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:14px;flex-wrap:wrap"><h1 class="grot" style="margin:0;font-size:22px">Access</h1>
-      <span class="note">Owners manage who can open the Admin dashboard here. Team password, lists and other settings are on ${isSuper() ? "the Settings page" : "the main owner's Settings page"}.</span></div>
+      <span class="note">Owner accounts sign in on the Admin tab with their own email and password. Admins can also use the shared admin password. Role passwords, lists and other settings are on ${isSuper() ? "the Settings page" : "the main owner's Settings page"}.</span></div>
     <div class="access">
-      <div class="panel full"><div class="panel-h">Admins & owners <small>people who sign in with their own name and password</small></div>
+      <div class="panel full"><div class="panel-h">Owners & admins with their own password <small>sign in on the Admin tab with their email</small></div>
         ${U ? `<div class="tbl-wrap"><table><thead><tr><th>Name</th><th>Access</th><th>Added</th><th></th></tr></thead><tbody>
-          ${U.map(u => `<tr><td><span class="av" style="margin-right:8px">${initials(u.name)}</span><b style="font-weight:600">${esc(u.name)}</b>${u.name.toLowerCase() === S.me.name.toLowerCase() ? ` <span class="note">(you)</span>` : ""}</td>
+          ${U.map(u => `<tr><td><span class="av" style="margin-right:8px">${initials(u.name)}</span><b style="font-weight:600">${esc(u.name)}</b>${u.email ? ` <span class="note">${esc(u.email)}</span>` : ""}${u.name.toLowerCase() === S.me.name.toLowerCase() ? ` <span class="note">(you)</span>` : ""}</td>
             <td><span class="role ${u.role}">${u.super ? "Main owner · everything" : u.role === "owner" ? "Owner · dashboard + access" : "Admin · dashboard"}</span></td><td class="note">${esc(u.added)}</td>
             <td style="text-align:right;display:flex;gap:6px;justify-content:flex-end">
               ${u.super ? `<span class="note">Protected</span>` : `<button class="btn small" data-act="reset" data-u="${esc(u.name)}">Set password</button>
@@ -917,6 +911,7 @@ function renderAccess() {
           </tbody></table></div>` : `<div class="pad note">Loading…</div>`}
         <form class="pad row-form" id="addUser" style="border-top:1px solid var(--line)">
           <div class="field"><label for="nuName">Name</label><input class="input" id="nuName" placeholder="e.g. Deepak" autocomplete="off"></div>
+          <div class="field"><label for="nuEmail">Email (they sign in with this)</label><input class="input" id="nuEmail" type="email" placeholder="name@ytforbrands.com" autocomplete="off"></div>
           <div class="field"><label for="nuRole">Access</label><select class="input" id="nuRole"><option value="admin">Admin: can view the dashboard</option><option value="owner">Owner: dashboard + this page</option></select></div>
           <div class="field"><label for="nuPw">Password (6+ characters)</label><input class="input" id="nuPw" type="text" autocomplete="off" placeholder="Give this to them privately"></div>
           <button class="btn primary">Add person</button>
@@ -934,7 +929,7 @@ function renderAccess() {
   document.querySelectorAll("[data-act]").forEach(b => b.onclick = () => userAction(b));
   $("#addUser").onsubmit = async e => {
     e.preventDefault(); $("#nuErr").textContent = "";
-    try { const r = await api("saveUser", { user: $("#nuName").value.trim(), role: $("#nuRole").value, password: $("#nuPw").value });
+    try { const r = await api("saveUser", { user: $("#nuName").value.trim(), email: $("#nuEmail").value.trim(), role: $("#nuRole").value, password: $("#nuPw").value });
       S.users = r.users; toast("Added " + $("#nuName").value.trim()); renderAccess(); } catch (err) { $("#nuErr").textContent = err.message; }
   };
   $("#myPw").onsubmit = async e => {
@@ -959,12 +954,15 @@ function renderSettings() {
     <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:14px;flex-wrap:wrap"><h1 class="grot" style="margin:0;font-size:22px">Settings</h1>
       <span class="note">Only you can see this page. Changes apply to the website and the Google Sheet straight away.</span></div>
     <div class="access">
-      <div class="panel"><div class="panel-h">Team password <small>the one password editors sign in with</small></div>
-        <form class="pad stack" id="teamPw">
-          <div class="field"><label for="tpw">New team password (6+ characters)</label><input class="input" id="tpw" type="text" autocomplete="off"></div>
-          <div class="row-form"><button class="btn primary">Change team password</button><span class="err" id="tpErr"></span><span class="ok-msg" id="tpOk"></span></div>
-          <div class="note">People already signed in stay in until their session ends. To push everyone out now, use <b>Sign everyone out</b> below.</div>
-        </form></div>
+      <div class="panel"><div class="panel-h">Role passwords <small>everyone signs in with their email + the password for their role</small></div>
+        <div class="pad stack">
+          ${(st.rolePasswords || [{ role: "editor", label: "Editor" }, { role: "cm", label: "Content manager" }, { role: "admin", label: "Admin" }]).map(r => `
+          <form class="row-form" data-rp="${r.role}"><div class="field" style="flex:1"><label for="rp_${r.role}">${esc(r.label)} password <small style="font-weight:400">(6+ characters)</small></label>
+            <input class="input" id="rp_${r.role}" type="text" autocomplete="off" placeholder="New ${esc(r.label.toLowerCase())} password"></div>
+            <button class="btn">Change</button></form>`).join("")}
+          <div class="err" id="tpErr"></div><div class="ok-msg" id="tpOk"></div>
+          <div class="note">Changing a role's password signs out everyone who used the old one; they sign in again with the new one. Other roles stay signed in.</div>
+        </div></div>
       <div class="panel"><div class="panel-h">My password</div>
         <form class="pad stack" id="myPw">
           <div class="field"><label for="mp1">Current password</label><input class="input" id="mp1" type="password" autocomplete="current-password"></div>
@@ -1046,11 +1044,12 @@ function renderSettings() {
     catch (e) { toast(e.message, true); b.disabled = false; b.textContent = "Save lists"; }
   };
   if ($("#undoLists")) $("#undoLists").onclick = () => { S.draft = null; redraw(); };
-  $("#teamPw").onsubmit = async e => {
+  document.querySelectorAll("form[data-rp]").forEach(f => f.onsubmit = async e => {
     e.preventDefault(); $("#tpErr").textContent = $("#tpOk").textContent = "";
-    try { await api("setTeamPassword", { password: $("#tpw").value }); $("#tpw").value = ""; $("#tpOk").textContent = "Changed. Share the new password with the team."; }
+    const role = f.dataset.rp, inp = f.querySelector("input");
+    try { await api("setRolePassword", { role, password: inp.value }); inp.value = ""; $("#tpOk").textContent = "Changed. Share the new password privately with that group."; }
     catch (err) { $("#tpErr").textContent = err.message; }
-  };
+  });
   $("#myPw").onsubmit = async e => {
     e.preventDefault(); $("#mpErr").textContent = $("#mpOk").textContent = "";
     try { await api("changeMyPassword", { oldPassword: $("#mp1").value, newPassword: $("#mp2").value }); $("#mp1").value = $("#mp2").value = ""; $("#mpOk").textContent = "Your password is changed."; }
@@ -1296,7 +1295,13 @@ const Demo = (() => {
   return { async handle(action, p) {
     await new Promise(r => setTimeout(r, 120));
     if (action === "names") return { ok: true, editors: editors.slice(), leads: lists.assigners.slice() };
-    if (action === "login") { if (!p.password) throw new Error("Enter a password"); me = p.name ? { name: p.name, role: "owner", super: true } : { name: p.who || "Team", role: "member" }; return { ok: true, token: "demo", ...me }; }
+    if (action === "login") {
+      if (!p.password) throw new Error("Enter a password");
+      const em = p.email || "someone@ytforbrands.com";
+      me = p.mode === "admin" ? (p.password === "owner" || /^saajid@/.test(em) ? { name: "Saajid", email: em, role: "owner", super: true, account: true } : { name: em, email: em, role: "admin", tag: "admin" })
+        : { name: em, email: em, role: "member", tag: /manager|cm/.test(p.password) ? "cm" : "editor" };
+      return { ok: true, token: "demo", editors: editors.slice(), lists, tasks: tasks.map(t => ({ ...t })), today, me };
+    }
     if (action === "activity") return { ok: true, items: log.slice().reverse(), total: log.length };
     if (action === "settings") return settingsOut();
     if (action === "saveLists") { if (p.statuses) lists.status = p.statuses.slice(); lists.clients = p.channels.map(c => c.name); lists.assigners = p.assigners.slice(); lists.channelFormats = []; p.channels.forEach(c => c.formats.forEach(f => lists.channelFormats.push({ channel: c.name, format: f }))); return settingsOut(); }
@@ -1347,9 +1352,12 @@ new MutationObserver(() => addEyes()).observe(document.body, { childList: true, 
 // ================================================================ start
 (async function start() {
   const saved = store.get("ytb_token");
-  if (saved && !S.demo) { S.token = saved; if (await load(true)) { S.view = isAdmin() ? "admin" : "board"; showApp(); } else $("#login").classList.remove("hidden"); }
+  let cached = null; try { cached = JSON.parse(store.get("ytb_cache") || "null"); } catch (e) {}
+  if (saved && !S.demo && cached && cached.me) {
+    // Signed in before: show the last board straight away, then bring it up to date in the background
+    S.token = saved; applyData(cached, true); S.view = isAdmin() ? "admin" : "board"; showApp(); load(true);
+  } else if (saved && !S.demo) { S.token = saved; if (await load(true)) { S.view = isAdmin() ? "admin" : "board"; showApp(); } else $("#login").classList.remove("hidden"); }
   else $("#login").classList.remove("hidden");
-  loadNames();
   setInterval(() => { if (S.token && !S.modalOpen && !$("#app").classList.contains("hidden")) load(true); }, CONFIG.AUTO_REFRESH_SEC * 1000);
 })();
 </script>
