@@ -482,6 +482,7 @@ function addDays(iso, n) { const [y, m, d] = iso.split("-").map(Number); return 
 function fmtDate(iso) { if (!iso) return ""; const [y, m, d] = iso.split("-").map(Number); return new Date(y, m - 1, d).toLocaleDateString("en-GB", { day: "2-digit", month: "short" }); }
 function dayDiff(a, b) { const p = s => { const [y, m, d] = s.split("-").map(Number); return Date.UTC(y, m - 1, d); }; return Math.round((p(b) - p(a)) / 864e5); }
 const DONE = ["Delivered", "Uploaded"];
+const NEEDS_LINK = ["Uploaded"]; // a video can only be marked Uploaded once its Drive link is in
 const isDone = t => DONE.includes(t.status);
 const coList = t => String(t.coEditors || "").split(",").map(x => x.trim()).filter(x => x && x !== t.editor);
 const editorsOf = t => [t.editor].concat(coList(t));
@@ -1244,13 +1245,15 @@ function missingFields(t) {
   const m = REQ.filter(([k]) => !String(t[k] ?? "").trim());
   if (AFTER_DRAFT.includes(t.status) && !t.firstDraftDate) m.push(["firstDraftDate", "First draft date (needed from Internal review on)"]);
   if (DONE.includes(t.status) && !t.deliveredDate) m.push(["deliveredDate", "Delivered date"]);
+  if (NEEDS_LINK.includes(t.status) && !String(t.finalLink || "").trim()) m.push(["finalLink", "Final file (Drive) link, needed before Uploaded"]);
   return m;
 }
 async function quickStatus(t, status) {
   const task = { ...t, status };
   if (DONE.includes(status) && !t.deliveredDate) task.deliveredDate = S.today;
   if (AFTER_DRAFT.includes(status) && !t.firstDraftDate) task.firstDraftDate = S.today;
-  if (missingFields(task).length) { toast("Fill in the required fields first", true); return openTaskModal(t, { status }); }
+  const miss = missingFields(task);
+  if (miss.length) { toast(miss.length === 1 && miss[0][0] === "finalLink" ? "Add the Drive link first, then it can go to Uploaded" : "Fill in the required fields first", true); return openTaskModal(t, { status }); }
   const prev = { status: t.status, deliveredDate: t.deliveredDate, firstDraftDate: t.firstDraftDate };
   Object.assign(t, task); render();
   try { await api("update", { editor: t.editor, row: t.row, orig: t.title, task }); toast(`Moved to ${status}`); load(true); }
@@ -1301,7 +1304,11 @@ function openTaskModal(t, preset) {
   document.addEventListener("keydown", onKey);
   $("#mx").onclick = close; $("#mcancel").onclick = close; $("#bd").onclick = e => { if (e.target.id === "bd") close(); };
   if (isNew) setTimeout(() => $("#m_title").focus(), 30);
-  if (preset && preset.status) { $("#m_status").value = preset.status; }
+  if (preset && preset.status) {
+    $("#m_status").value = preset.status;
+    // Show straight away what's still needed for the stage they tried to move it to
+    if (t) setTimeout(() => missingFields({ ...t, status: preset.status }).forEach(([k], i) => { const el = $("#m_" + k); if (el) { el.classList.add("miss"); if (i === 0) el.focus(); } }), 40);
+  }
   const dot = (id, kind) => { const el = $("#" + id); el.addEventListener("change", () => { $("#" + id + "_dot").style.background = el.value ? colorFor(kind, el.value) : "transparent"; el.parentNode.classList.toggle("has", !!el.value); }); };
   // Format list follows the channel (only the formats that channel makes)
   let curFmt = v.format || "";

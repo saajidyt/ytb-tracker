@@ -564,7 +564,7 @@ function seedData() {
     }
     if (idx >= stIdx("Revisions")) v.revisions = ri(0, 3);
     if (idx >= stIdx("Internal review")) v.qcResult = rnd() < .15 ? "Failed – fixes needed" : "Passed";
-    if (idx >= stIdx("Approved")) v.finalLink = "https://drive.google.com/";
+    if (idx > stIdx("Approved") || (idx === stIdx("Approved") && rnd() < .5)) v.finalLink = "https://drive.google.com/";
     if (status === "On hold") { v.blocker = "Waiting on client approval of script"; }
     else if (rnd() < .12) v.blocker = pick(["Waiting on client feedback", "Missing B-roll", "Script not final"]);
     const fin = v.publishedDate || v.uploadedDate;
@@ -598,7 +598,7 @@ function historyRow(v) {
 }
 
 // ---------------------------------------------------------------- state
-const KEY = "ytb_proto_v3";
+const KEY = "ytb_proto_v4";
 let D; try { D = JSON.parse(store.get(KEY) || "null"); } catch (e) { D = null; }
 if (!D || !D.people) D = seedData();
 const save = () => store.set(KEY, JSON.stringify(D));
@@ -662,7 +662,7 @@ function missing(v) {
   if (i >= stIdx("Not started")) { need("editor", "Main editor"); need("shift", "Day slot"); need("assignedDate", "Assigned date"); need("dueDate", "Due date"); }
   if (i >= stIdx("Internal review") && v.status !== "On hold") need("firstDraftDate", "First draft date");
   if (stIdx(v.status) >= stIdx("Approved")) need("approvedDate", "Approved date");
-  if (["Uploaded", "Published"].includes(v.status)) need("uploadedDate", "Upload date");
+  if (["Uploaded", "Published"].includes(v.status)) { need("finalLink", "Final file (Drive) link"); need("uploadedDate", "Upload date"); }
   if (v.status === "Published") need("publishedDate", "Publish date");
   return m;
 }
@@ -926,7 +926,7 @@ function moveTo(v, to) {
   const next = { ...v, status: to };
   const k = STAGE_DATE[to]; if (k && !next[k]) next[k] = TODAY;
   const miss = missing(next);
-  if (miss.length) { toast(`Fill in: ${miss.map(m => m[1]).join(", ")}`, true); return openVideo(v, { status: to }); }
+  if (miss.length) { toast(miss.some(m => m[0] === "finalLink") ? "Add the Drive link first, then it can go to Uploaded" : `Fill in: ${miss.map(m => m[1]).join(", ")}`, true); return openVideo(v, { status: to }); }
   askDelayIfNeeded(next, reason => {
     const ch = { status: to }; if (k && !v[k]) ch[k] = TODAY; if (reason) ch.delayReason = reason;
     commit(v, ch); toast(to === "Published" ? "Published and saved to History" : `Moved to ${to}`); S.anim = false; render();
@@ -1065,6 +1065,7 @@ function openVideo(v, preset) {
   $("#modalRoot").addEventListener("input", e => e.target.classList.remove("miss"));
   $("#modalRoot").addEventListener("change", e => e.target.classList.remove("miss"));
   if (isNew === false && preset && preset.status) { const k = STAGE_DATE[preset.status]; if (k && $("#m_" + k) && !$("#m_" + k).value && !$("#m_" + k).disabled) $("#m_" + k).value = TODAY; }
+  if (isNew === false && preset && preset.status) setTimeout(() => missing({ ...w, ...(STAGE_DATE[preset.status] && !w[STAGE_DATE[preset.status]] ? { [STAGE_DATE[preset.status]]: TODAY } : {}) }).forEach(([k], i) => { const el = $("#m_" + k); if (el) { el.classList.add("miss"); if (i === 0) el.focus(); } }), 40);
   if ($("#msave")) $("#msave").onclick = () => {
     const F = ["title", "client", "format", "priority", "status", "cm", "podLead", "shootDate", "cutDate", "handoverDate", "editor", "shift", "assignedDate", "dueDate", "firstDraftDate", "revisions",
       "approvedDate", "uploadedDate", "publishedDate", "blocker", "finalLink", "qcResult", "qcReport", "delayReason"];
