@@ -507,14 +507,14 @@
       <span class="knob"></span></button>
     <div>
       <div class="brand grot"><span class="logo" role="img" aria-label="YT4B"></span>YTB Pipeline</div>
-      <p>Sign in with your work email and your password.</p>
+      <p>Sign in with your work email and your password. First time? Just type your @ytforbrands.com email and press Sign in.</p>
     </div>
     <div class="field"><label for="lemail">Work email</label><input class="input" type="email" id="lemail" autocomplete="username" placeholder="name@ytforbrands.com"></div>
     <div class="field"><label for="lpw">Password</label><input class="input" type="password" id="lpw" autocomplete="current-password"></div>
     <div class="err" id="loginErr"></div>
     <button class="btn primary" id="loginBtn" style="height:42px;justify-content:center">Sign in</button>
-    <div style="text-align:center"><button type="button" class="linkbtn" id="lForgot">Forgot password? Set your own</button></div>
-    <div class="note" style="text-align:center">Haven't set your own password yet? Use your role's shared password, then set your own from the menu.</div>
+    <div style="text-align:center"><button type="button" class="linkbtn" id="lForgot">First time, or forgot password? Get a code</button></div>
+    <div class="note" style="text-align:center">Not on a @ytforbrands.com email? Use your role's shared password.</div>
   </form>
 </div>
 
@@ -800,13 +800,20 @@ $("#loginForm").onsubmit = async e => {
   e.preventDefault();
   const email = $("#lemail").value.trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { $("#loginErr").textContent = "Enter your work email."; $("#lemail").focus(); return; }
-  if (!$("#lpw").value) { $("#loginErr").textContent = "Enter your password."; $("#lpw").focus(); return; }
+  if (!$("#lpw").value) {
+    if (/@ytforbrands\.com$/.test(email)) { $("#loginErr").textContent = ""; openOwnPw(email, true, true); return; }
+    $("#loginErr").textContent = "Enter your password."; $("#lpw").focus(); return;
+  }
   if ($("#lclaim") && !$("#lclaim").value) { $("#loginErr").textContent = "Pick your name first."; return; }
   $("#loginErr").textContent = ""; $("#loginBtn").disabled = true; $("#loginBtn").textContent = "Signing in…";
   try {
     let r;
     try { r = await api("login", { email, password: $("#lpw").value, claimName: $("#lclaim") ? $("#lclaim").value : "" }); }
-    catch (err) { if (err.data && err.data.needName) { showClaim(err.data); $("#loginBtn").disabled = false; $("#loginBtn").textContent = "Sign in"; return; } throw err; }
+    catch (err) {
+      if (err.data && err.data.needName) { showClaim(err.data); $("#loginBtn").disabled = false; $("#loginBtn").textContent = "Sign in"; return; }
+      if (err.data && err.data.needSetup) { $("#loginBtn").disabled = false; $("#loginBtn").textContent = "Sign in"; openOwnPw(email, true, true); return; }
+      throw err;
+    }
     if ($("#lclaimBox")) $("#lclaimBox").remove();
     store.set("ytb_email", email); S.token = r.token; store.set("ytb_token", r.token);
     applyData(r); cacheNow(); $("#lpw").value = ""; showApp();
@@ -1327,10 +1334,10 @@ function renderPwNudge() {
   $("#pwLater").onclick = () => { store.set("ytb_pwlater", S.me.email + "|" + new Date().toDateString()); renderPwNudge(); };
   $("#pwNow").onclick = () => openOwnPw(S.me.email, false);
 }
-function openOwnPw(email, fromLogin) {
+function openOwnPw(email, fromLogin, firstTime) {
   const root = document.createElement("div");
   const changing = !fromLogin && S.me && S.me.ownPw;
-  root.innerHTML = `<div class="backdrop"><div class="modal sm" role="dialog" aria-label="Set your password"><div class="modal-h"><h3>${changing ? "Change my password" : "Set your own password"}</h3><button class="x" aria-label="Close">×</button></div>
+  root.innerHTML = `<div class="backdrop"><div class="modal sm" role="dialog" aria-label="Set your password"><div class="modal-h"><h3>${changing ? "Change my password" : firstTime ? "Welcome! Let's set you up" : "Set your own password"}</h3><button class="x" aria-label="Close">×</button></div>
     <div class="tm-body" id="opBody"></div>
     <div class="modal-f"><span class="err" id="opE" style="flex:1"></span><button class="btn" data-c>Cancel</button><button class="btn primary" id="opGo"></button></div></div></div>`;
   document.body.appendChild(root);
@@ -1338,11 +1345,11 @@ function openOwnPw(email, fromLogin) {
   const close = () => root.remove();
   q(".x").onclick = close; q("[data-c]").onclick = close;
   const busy = (on, label) => { q("#opGo").disabled = on; q("#opGo").textContent = label; };
-  let step = 1;
+  let step = 1, saved = null;
   const stepOne = () => {
     step = 1;
     q("#opBody").innerHTML = fromLogin
-      ? `<div class="note" style="margin-bottom:10px">We'll email a 6-digit code to your work email. Use it to set a password only you know.</div>
+      ? `<div class="note" style="margin-bottom:10px">${firstTime ? "First time here? " : ""}We'll email a 6-digit code to your work email. Use it to set a password only you know.</div>
          <div class="field"><label for="opEm">Work email</label><input class="input" type="email" id="opEm" value="${esc(email || "")}" autocomplete="username"></div>`
       : `<div class="note">We'll email a 6-digit code to <b>${esc(email)}</b>. Use it to set a password only you know. After that, the shared ${S.me && S.me.account ? "" : "role "}password stops working for you.</div>`;
     busy(false, "Email me a code"); q("#opE").textContent = "";
@@ -1365,20 +1372,41 @@ function openOwnPw(email, fromLogin) {
     try { await api("requestCode", { email }); stepTwo(); toast("Code sent to " + email); }
     catch (e) { q("#opE").textContent = e.message === "Failed to fetch" ? "Can't reach the tracker right now." : e.message; busy(false, step === 1 ? "Email me a code" : "Save password"); }
   };
+  const stepName = d => {
+    step = 3;
+    q("#opBody").innerHTML = `<div class="note" style="margin-bottom:10px">Email confirmed. Which one is you? You only do this once.</div>
+      <div class="field"><label for="opName">Your name</label><select class="input" id="opName"><option value="">Select your name</option>${d.choices.map(n => `<option ${n === d.suggest ? "selected" : ""}>${esc(n)}</option>`).join("")}<option value="__new__">I'm not on this list</option></select></div>
+      <div class="field hidden" id="opNewBox"><label for="opNew">Your full name</label><input class="input" id="opNew" autocomplete="name"><div class="note" style="margin-top:4px">Saajid will get an email to give you a role.</div></div>`;
+    q("#opName").onchange = () => q("#opNewBox").classList.toggle("hidden", q("#opName").value !== "__new__");
+    busy(false, "Finish"); q("#opE").textContent = "";
+  };
   const save = async () => {
-    const code = q("#opCode").value.replace(/\D/g, ""), a = q("#opP1").value, b = q("#opP2").value;
-    if (code.length !== 6) return (q("#opE").textContent = "Enter the 6-digit code from the email.");
-    if (a.length < 8) return (q("#opE").textContent = "Use at least 8 characters.");
-    if (a !== b) return (q("#opE").textContent = "The two passwords don't match.");
+    let body;
+    if (step === 3) {
+      const pick = q("#opName").value;
+      if (!pick) return (q("#opE").textContent = "Pick your name.");
+      if (pick === "__new__" && q("#opNew").value.trim().length < 2) return (q("#opE").textContent = "Type your name.");
+      body = { ...saved, claimName: pick, newName: pick === "__new__" ? q("#opNew").value.trim() : "" };
+    } else {
+      const code = q("#opCode").value.replace(/\D/g, ""), a = q("#opP1").value, b = q("#opP2").value;
+      if (code.length !== 6) return (q("#opE").textContent = "Enter the 6-digit code from the email.");
+      if (a.length < 8) return (q("#opE").textContent = "Use at least 8 characters.");
+      if (a !== b) return (q("#opE").textContent = "The two passwords don't match.");
+      body = saved = { email, code, password: a };
+    }
     q("#opE").textContent = ""; busy(true, "Saving…");
     try {
-      const r = await api("setOwnPassword", { email, code, password: a });
+      const r = await api("setOwnPassword", body);
       close();
       store.set("ytb_email", email); S.token = r.token; store.set("ytb_token", r.token);
       applyData(r); cacheNow();
       if (fromLogin) { $("#lpw").value = ""; if ($("#lclaimBox")) $("#lclaimBox").remove(); $("#loginErr").textContent = ""; showApp(); } else render();
       toast("Password saved. Use it next time you sign in.");
-    } catch (e) { q("#opE").textContent = e.message; busy(false, "Save password"); }
+    } catch (e) {
+      if (e.data && e.data.needName) return stepName(e.data);
+      if (e.data && e.data.noRole) { close(); if (fromLogin) $("#loginErr").textContent = e.message; else toast(e.message, true); return; }
+      q("#opE").textContent = e.message; busy(false, step === 3 ? "Finish" : "Save password");
+    }
   };
   q("#opGo").onclick = () => step === 1 ? send() : save();
   root.addEventListener("keydown", e => { if (e.key === "Enter" && e.target.tagName === "INPUT") { e.preventDefault(); q("#opGo").click(); } if (e.key === "Escape") close(); });

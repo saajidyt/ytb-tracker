@@ -1291,6 +1291,7 @@ function login_(req) {
     else { noteFail_(email); return { ok: false, error: 'Wrong password. You set your own password, so the shared one no longer works. Use "Forgot password?" to get a code.', auth: false }; }
   } else {
     var person = personByEmail_(email);
+    if (!person && isTeamDomain_(email)) return { ok: false, needSetup: true, error: 'First time here? We\'ll email you a code to set your password.' };
     if (!person) {
       // First sign-in with a new email: the right role password lets them pick their own name (once).
       var role = matchRole_(pw, ['podlead', 'cm', 'editor', 'admin']);
@@ -1320,6 +1321,7 @@ function login_(req) {
   var token = issueToken_(s);
   var full = sessionFor_(token);
   if (!full) return { ok: false, error: 'Could not sign you in. Ask Saajid to check your tags.' };
+  if (!full.tags.length) return { ok: false, noRole: true, error: 'You\'re set up, but you don\'t have a role yet. Saajid has been told. Sign in again once he adds you.' };
   var d = dataFor_(full); d.token = token;
   return d;
 }
@@ -1349,7 +1351,7 @@ function requestCode_(req) {
   var email = String(req.email || '').trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { ok: false, error: 'Enter your work email.' };
   var person = personByEmail_(email), acct = accountKeyFor_(email);
-  if (!person && !acct) return { ok: false, error: 'This email isn\'t linked to anyone yet. Sign in once with your role\'s shared password (that links it), or ask Saajid to add it on the People page.' };
+  if (!person && !acct && !isTeamDomain_(email)) return { ok: false, error: 'Only @ytforbrands.com emails can sign up here. If you use another email, sign in once with your role\'s shared password.' };
   var c = CacheService.getScriptCache();
   if (c.get('cool_' + email)) return { ok: false, error: 'A code was just sent. Wait a minute before asking for another.' };
   var sent = Number(c.get('sent_' + email) || 0);
@@ -1359,7 +1361,7 @@ function requestCode_(req) {
   c.put('code_' + email, JSON.stringify({ salt: salt, hash: hash_(code, salt), tries: 0 }), 900);
   c.put('cool_' + email, '1', 60);
   c.put('sent_' + email, String(sent + 1), 3600);
-  var name = person ? person.name : getUsers_()[acct].name;
+  var name = person ? person.name : acct ? getUsers_()[acct].name : '';
   sendCodeMail_(email, name, code);
   return { ok: true, sent: true };
 }
@@ -1389,8 +1391,13 @@ function setOwnPassword_(req) {
   }
   if (pw.length < 8) return { ok: false, error: 'Use at least 8 characters.' };
   var person = personByEmail_(email), acct = accountKeyFor_(email);
-  if (!person && !acct) return { ok: false, error: 'This email isn\'t on the team list anymore.' };
   if (ROLES && Object.keys(ROLES).some(function (r) { var p = rolePw_(r); return p && hash_(pw, p.salt) === p.hash; })) return { ok: false, error: 'Pick a password of your own, not a shared role password.' };
+  if (!person && !acct) {
+    if (!isTeamDomain_(email)) return { ok: false, error: 'This email isn\'t on the team list anymore.' };
+    var linked = claimForEmail_(email, req);
+    if (linked) return linked;   // needs a name, or the pick wasn't allowed (code stays valid)
+    person = personByEmail_(email);
+  }
   c.remove('code_' + email);
   if (acct) { var users = getUsers_(); users[acct].salt = newSalt_(); users[acct].hash = hash_(pw, users[acct].salt); saveUsers_(users); }
   else { var salt = newSalt_(); props_().setProperty('OWNPW_' + email, JSON.stringify({ salt: salt, hash: hash_(pw, salt) })); }
@@ -1409,6 +1416,60 @@ function resetOwnPassword_(req, sess) {
 }
 // Run once from the editor after deploying, so Google asks you to allow sending the code emails.
 function authorizeEmail() { Logger.log('Emails left today: ' + MailApp.getRemainingDailyQuota()); }
+
+// ---------------------------------------------------------------------
+// Company emails sign up on their own: the emailed code proves the inbox, then
+// they pick their name from the people not linked yet (or add themselves).
+// ---------------------------------------------------------------------
+var TEAM_DOMAIN = 'ytforbrands.com';
+function isTeamDomain_(email) { return String(email || '').toLowerCase().split('@')[1] === TEAM_DOMAIN; }
+function letters_(x) { return String(x || '').toLowerCase().replace(/[^a-z]/g, ''); }
+function editDist_(a, b) {
+  var d = []; for (var i = 0; i <= a.length; i++) { d[i] = [i]; } for (var j = 0; j <= b.length; j++) d[0][j] = j;
+  for (i = 1; i <= a.length; i++) for (j = 1; j <= b.length; j++) d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+  return d[a.length][b.length];
+}
+// How far a name is from an email's first part (0 = same). Checks first name and full name.
+function nameScore_(name, email) {
+  var local = letters_(String(email).split('@')[0]); if (!local) return 99;
+  var first = letters_(String(name).split(/\s+/)[0]), full = letters_(name);
+  var best = Math.min(editDist_(first, local), editDist_(full, local));
+  if (first.length >= 3 && (local.indexOf(first) === 0 || first.indexOf(local) === 0)) best = Math.min(best, 1);
+  return best;
+}
+function claimForEmail_(email, req) {
+  var claim = String(req.claimName || '').trim();
+  var open = getPeople_().filter(function (p) { return !p.email; });
+  if (!claim) {
+    var ranked = open.map(function (p) { return { n: p.name, s: nameScore_(p.name, email) }; }).sort(function (a, b) { return a.s - b.s; });
+    return { ok: false, needName: true, choices: open.map(function (p) { return p.name; }).sort(), suggest: ranked.length && ranked[0].s <= 2 ? ranked[0].n : '', error: 'Pick your name to finish' };
+  }
+  {   // runs inside setOwnPassword's lock
+    var ppl = getPeople_(), me;
+    if (claim === '__new__') {
+      var nn = String(req.newName || '').replace(/\s+/g, ' ').trim();
+      if (nn.length < 2) return { ok: false, error: 'Type your name.' };
+      if (ppl.some(function (p) { return p.name.toLowerCase() === nn.toLowerCase(); })) return { ok: false, error: 'That name is already on the list. Pick it from the list instead.' };
+      me = { name: nn, email: email, tags: [] }; ppl.push(me); writePeople_(ppl);
+      log_(nn, 'Website', '', '', 'People: ' + nn + ' (' + email + ') signed up and needs a role');
+      notifyOwner_(nn + ' signed up for the tracker', nn + ' (' + email + ') verified their email and signed up, but isn\'t on the team list, so they have no role yet.\n\nGive them one on the People page: https://tracker.ytforbrands.com');
+      return null;
+    }
+    me = ppl.filter(function (p) { return p.name === claim; })[0];
+    if (!me || me.email) return { ok: false, error: 'That name is already linked to another email. Pick yours, or ask Saajid.' };
+    var powerful = me.tags.indexOf('admin') >= 0 || me.tags.indexOf('owner') >= 0;
+    if (powerful && nameScore_(me.name, email) > 2) return { ok: false, error: me.name + ' has admin access, so only an email that matches the name can link it. Ask Saajid if this is you.' };
+    me.email = email; writePeople_(ppl);
+    log_(me.name, 'Website', '', '', 'People: linked their email ' + email + ' (verified by code)');
+    return null;
+  }
+}
+function notifyOwner_(subject, body) {
+  try {
+    var users = getUsers_(), to = Object.keys(users).map(function (k) { return users[k].email; }).filter(Boolean)[0];
+    if (to) MailApp.sendEmail({ to: to, name: 'YTB Pipeline', subject: subject, body: body });
+  } catch (e) {}
+}
 function qcKey_() {
   var k = props_().getProperty('QC_KEY');
   if (!k) { k = 'qc-' + Utilities.getUuid().replace(/-/g, '').slice(0, 20); props_().setProperty('QC_KEY', k); }
@@ -1930,13 +1991,20 @@ $("#loginForm").onsubmit = async e => {
   e.preventDefault();
   const email = $("#lemail").value.trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { $("#loginErr").textContent = "Enter your work email."; $("#lemail").focus(); return; }
-  if (!$("#lpw").value) { $("#loginErr").textContent = "Enter your password."; $("#lpw").focus(); return; }
+  if (!$("#lpw").value) {
+    if (/@ytforbrands\.com$/.test(email)) { $("#loginErr").textContent = ""; openOwnPw(email, true, true); return; }
+    $("#loginErr").textContent = "Enter your password."; $("#lpw").focus(); return;
+  }
   if ($("#lclaim") && !$("#lclaim").value) { $("#loginErr").textContent = "Pick your name first."; return; }
   $("#loginErr").textContent = ""; $("#loginBtn").disabled = true; $("#loginBtn").textContent = "Signing in…";
   try {
     let r;
     try { r = await api("login", { email, password: $("#lpw").value, claimName: $("#lclaim") ? $("#lclaim").value : "" }); }
-    catch (err) { if (err.data && err.data.needName) { showClaim(err.data); $("#loginBtn").disabled = false; $("#loginBtn").textContent = "Sign in"; return; } throw err; }
+    catch (err) {
+      if (err.data && err.data.needName) { showClaim(err.data); $("#loginBtn").disabled = false; $("#loginBtn").textContent = "Sign in"; return; }
+      if (err.data && err.data.needSetup) { $("#loginBtn").disabled = false; $("#loginBtn").textContent = "Sign in"; openOwnPw(email, true, true); return; }
+      throw err;
+    }
     if ($("#lclaimBox")) $("#lclaimBox").remove();
     store.set("ytb_email", email); S.token = r.token; store.set("ytb_demo_token", r.token);
     applyData(r); cacheNow(); $("#lpw").value = ""; showApp();
@@ -2459,10 +2527,10 @@ function renderPwNudge() {
   $("#pwLater").onclick = () => { store.set("ytb_pwlater", S.me.email + "|" + new Date().toDateString()); renderPwNudge(); };
   $("#pwNow").onclick = () => openOwnPw(S.me.email, false);
 }
-function openOwnPw(email, fromLogin) {
+function openOwnPw(email, fromLogin, firstTime) {
   const root = document.createElement("div");
   const changing = !fromLogin && S.me && S.me.ownPw;
-  root.innerHTML = `<div class="backdrop"><div class="modal sm" role="dialog" aria-label="Set your password"><div class="modal-h"><h3>${changing ? "Change my password" : "Set your own password"}</h3><button class="x" aria-label="Close">×</button></div>
+  root.innerHTML = `<div class="backdrop"><div class="modal sm" role="dialog" aria-label="Set your password"><div class="modal-h"><h3>${changing ? "Change my password" : firstTime ? "Welcome! Let's set you up" : "Set your own password"}</h3><button class="x" aria-label="Close">×</button></div>
     <div class="tm-body" id="opBody"></div>
     <div class="modal-f"><span class="err" id="opE" style="flex:1"></span><button class="btn" data-c>Cancel</button><button class="btn primary" id="opGo"></button></div></div></div>`;
   document.body.appendChild(root);
@@ -2470,11 +2538,11 @@ function openOwnPw(email, fromLogin) {
   const close = () => root.remove();
   q(".x").onclick = close; q("[data-c]").onclick = close;
   const busy = (on, label) => { q("#opGo").disabled = on; q("#opGo").textContent = label; };
-  let step = 1;
+  let step = 1, saved = null;
   const stepOne = () => {
     step = 1;
     q("#opBody").innerHTML = fromLogin
-      ? `<div class="note" style="margin-bottom:10px">We'll email a 6-digit code to your work email. Use it to set a password only you know.</div>
+      ? `<div class="note" style="margin-bottom:10px">${firstTime ? "First time here? " : ""}We'll email a 6-digit code to your work email. Use it to set a password only you know.</div>
          <div class="field"><label for="opEm">Work email</label><input class="input" type="email" id="opEm" value="${esc(email || "")}" autocomplete="username"></div>`
       : `<div class="note">We'll email a 6-digit code to <b>${esc(email)}</b>. Use it to set a password only you know. After that, the shared ${S.me && S.me.account ? "" : "role "}password stops working for you.</div>`;
     busy(false, "Email me a code"); q("#opE").textContent = "";
@@ -2497,20 +2565,41 @@ function openOwnPw(email, fromLogin) {
     try { await api("requestCode", { email }); stepTwo(); toast("Code sent to " + email); }
     catch (e) { q("#opE").textContent = e.message === "Failed to fetch" ? "Can't reach the tracker right now." : e.message; busy(false, step === 1 ? "Email me a code" : "Save password"); }
   };
+  const stepName = d => {
+    step = 3;
+    q("#opBody").innerHTML = `<div class="note" style="margin-bottom:10px">Email confirmed. Which one is you? You only do this once.</div>
+      <div class="field"><label for="opName">Your name</label><select class="input" id="opName"><option value="">Select your name</option>${d.choices.map(n => `<option ${n === d.suggest ? "selected" : ""}>${esc(n)}</option>`).join("")}<option value="__new__">I'm not on this list</option></select></div>
+      <div class="field hidden" id="opNewBox"><label for="opNew">Your full name</label><input class="input" id="opNew" autocomplete="name"><div class="note" style="margin-top:4px">Saajid will get an email to give you a role.</div></div>`;
+    q("#opName").onchange = () => q("#opNewBox").classList.toggle("hidden", q("#opName").value !== "__new__");
+    busy(false, "Finish"); q("#opE").textContent = "";
+  };
   const save = async () => {
-    const code = q("#opCode").value.replace(/\D/g, ""), a = q("#opP1").value, b = q("#opP2").value;
-    if (code.length !== 6) return (q("#opE").textContent = "Enter the 6-digit code from the email.");
-    if (a.length < 8) return (q("#opE").textContent = "Use at least 8 characters.");
-    if (a !== b) return (q("#opE").textContent = "The two passwords don't match.");
+    let body;
+    if (step === 3) {
+      const pick = q("#opName").value;
+      if (!pick) return (q("#opE").textContent = "Pick your name.");
+      if (pick === "__new__" && q("#opNew").value.trim().length < 2) return (q("#opE").textContent = "Type your name.");
+      body = { ...saved, claimName: pick, newName: pick === "__new__" ? q("#opNew").value.trim() : "" };
+    } else {
+      const code = q("#opCode").value.replace(/\D/g, ""), a = q("#opP1").value, b = q("#opP2").value;
+      if (code.length !== 6) return (q("#opE").textContent = "Enter the 6-digit code from the email.");
+      if (a.length < 8) return (q("#opE").textContent = "Use at least 8 characters.");
+      if (a !== b) return (q("#opE").textContent = "The two passwords don't match.");
+      body = saved = { email, code, password: a };
+    }
     q("#opE").textContent = ""; busy(true, "Saving…");
     try {
-      const r = await api("setOwnPassword", { email, code, password: a });
+      const r = await api("setOwnPassword", body);
       close();
       store.set("ytb_email", email); S.token = r.token; store.set("ytb_demo_token", r.token);
       applyData(r); cacheNow();
       if (fromLogin) { $("#lpw").value = ""; if ($("#lclaimBox")) $("#lclaimBox").remove(); $("#loginErr").textContent = ""; showApp(); } else render();
       toast("Password saved. Use it next time you sign in.");
-    } catch (e) { q("#opE").textContent = e.message; busy(false, "Save password"); }
+    } catch (e) {
+      if (e.data && e.data.needName) return stepName(e.data);
+      if (e.data && e.data.noRole) { close(); if (fromLogin) $("#loginErr").textContent = e.message; else toast(e.message, true); return; }
+      q("#opE").textContent = e.message; busy(false, step === 3 ? "Finish" : "Save password");
+    }
   };
   q("#opGo").onclick = () => step === 1 ? send() : save();
   root.addEventListener("keydown", e => { if (e.key === "Enter" && e.target.tagName === "INPUT") { e.preventDefault(); q("#opGo").click(); } if (e.key === "Escape") close(); });
