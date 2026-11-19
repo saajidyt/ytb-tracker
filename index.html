@@ -559,13 +559,13 @@ const pill = k => `<span class="pl" style="--c:${TAG[k].c}">${TAG[k].label}</spa
 // ---------------------------------------------------------------- stages
 // Order of a video's life. Pre-production stages + Internal review belong to content managers.
 const PRE = ["Planned", "Scripting", "Shoot done", "Footage cut", "Handed over"];
-const POST = ["Not started", "Editing", "Internal review", "Revisions", "Client review", "Approved", "Uploaded", "Published", "On hold"];
+const POST = ["Not started", "Editing", "Sound design", "Internal review", "Revisions", "Client review", "Approved", "Uploaded", "Published", "On hold"];
 const CM_REVIEW = "Internal review";
 const PRE_COLS = PRE.concat([CM_REVIEW]);   // what the content manager's board shows
 const FLOW = PRE.concat(POST.filter(s => s !== "On hold"));
 const DONE = ["Uploaded", "Published"];
 const SC = { "Planned": "#94a3b8", "Shoot done": "#db2777", "Footage cut": "#c026d3", "Handed over": "#7c3aed",
-  "Not started": "#94a3b8", "Scripting": "#0e7490", "Editing": "#f59e0b", "Internal review": "#8b5cf6", "Revisions": "#ea580c", "Client review": "#3b82f6",
+  "Not started": "#94a3b8", "Scripting": "#0e7490", "Editing": "#f59e0b", "Sound design": "#0d9488", "Internal review": "#8b5cf6", "Revisions": "#ea580c", "Client review": "#3b82f6",
   "Approved": "#16a34a", "Uploaded": "#4f46e5", "Published": "#ca8a04", "On hold": "#a8a29e" };
 const PRI_C = { Urgent: "#dc2626", High: "#ea580c", Normal: "#2563eb", Low: "#16a34a" };
 const FMT_C = { "Long Form": "#6366f1", "Short Form": "#db2777" };
@@ -622,7 +622,7 @@ function canMove(v, to) {
   const from = v ? v.status : "";
   // Content managers: everything in pre-production, and taking a draft out of Internal review
   if (isCM() && (!from || isPre(from)) && isPre(to)) return true;
-  if (isCM() && from === CM_REVIEW && ["Editing", "Revisions", "Client review", "On hold"].includes(to)) return true;
+  if (isCM() && from === CM_REVIEW && ["Editing", "Sound design", "Revisions", "Client review", "On hold"].includes(to)) return true;
   // Pod leads: from handover onwards, including sending a draft into Internal review (but not out of it)
   if (isPL() && (!from || from === "Handed over" || (!isPre(from) && from !== CM_REVIEW)) && !isPre(to)) return true;
   return false;
