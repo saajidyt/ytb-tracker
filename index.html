@@ -409,7 +409,7 @@
     </div>
     <div class="field"><label for="lemail">Email</label><input class="input" id="lemail" type="email" autocomplete="username" placeholder="name@ytforbrands.com"></div>
     <div class="field"><label for="lpw">Password</label><input class="input" type="password" id="lpw" autocomplete="current-password"></div>
-    <div class="note" id="loginHint">Editors and content managers: use your team's password.</div>
+    <div class="note" id="loginHint">Editors, content managers and pod leads: use your team's password.</div>
     <div class="err" id="loginErr"></div>
     <button class="btn primary" id="loginBtn" style="height:42px;justify-content:center">Sign in</button>
 
@@ -606,7 +606,7 @@ let loginMode = "team";
 document.querySelectorAll(".seg [data-mode]").forEach(b => b.onclick = () => {
   loginMode = b.dataset.mode;
   document.querySelectorAll(".seg [data-mode]").forEach(x => x.classList.toggle("on", x === b));
-  $("#loginHint").textContent = loginMode === "team" ? "Editors and content managers: use your team's password." : "Admins: use the admin password. Owners: use your own password.";
+  $("#loginHint").textContent = loginMode === "team" ? "Editors, content managers and pod leads: use your team's password." : "Admins: use the admin password. Owners: use your own password.";
   $("#loginErr").textContent = "";
   ($("#lemail").value ? $("#lpw") : $("#lemail")).focus();
 });
@@ -655,7 +655,7 @@ function renderHeader() {
   document.querySelector("header").classList.toggle("wide", views.length > 3);
   $("#kpis").querySelectorAll(".kpi").forEach(b => b.onclick = () => openPreset(b.dataset.p));
   $("#meAv").textContent = initials(S.me ? (S.me.account ? S.me.name : String(S.me.email || S.me.name).split("@")[0].replace(/[._-]+/g, " ")) : "?");
-  const roleLabel = S.me?.super ? "Main owner" : S.me?.role === "owner" ? "Owner" : S.me?.role === "admin" ? "Admin" : S.me?.tag === "cm" ? "Content manager" : "Editor";
+  const roleLabel = S.me?.super ? "Main owner" : S.me?.role === "owner" ? "Owner" : S.me?.role === "admin" ? "Admin" : S.me?.tag === "cm" ? "Content manager" : S.me?.tag === "podlead" ? "Pod lead" : "Editor";
   $("#meMenu").innerHTML = `<div class="who"><b>${esc(S.me?.email || S.me?.name)}</b><small>${esc(roleLabel)}</small></div>
     ${S.me?.account ? `<button id="mPw">Change my password</button>` : ""}
     <button id="mOut">Sign out</button>`;
@@ -1071,7 +1071,7 @@ function renderSettings() {
     <div class="access">
       <div class="panel"><div class="panel-h">Role passwords <small>everyone signs in with their email + the password for their role</small></div>
         <div class="pad stack">
-          ${(st.rolePasswords || [{ role: "editor", label: "Editor" }, { role: "cm", label: "Content manager" }, { role: "admin", label: "Admin" }]).map(r => `
+          ${(st.rolePasswords || [{ role: "editor", label: "Editor" }, { role: "cm", label: "Content manager" }, { role: "podlead", label: "Pod lead" }, { role: "admin", label: "Admin" }]).map(r => `
           <form class="row-form" data-rp="${r.role}"><div class="field" style="flex:1"><label for="rp_${r.role}">${esc(r.label)} password <small style="font-weight:400">(6+ characters)</small></label>
             <input class="input" id="rp_${r.role}" type="text" autocomplete="off" placeholder="New ${esc(r.label.toLowerCase())} password"></div>
             <button class="btn">Change</button></form>`).join("")}
