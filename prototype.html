@@ -191,6 +191,13 @@
   .role { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; text-transform: capitalize; }
   .role.owner { background: var(--accentSoft); color: var(--accent); } .role.admin { background: var(--longBg); color: var(--longText); }
   .note { color: var(--muted); font-size: 12px; line-height: 1.5; }
+  .linkbtn { background: none; border: 0; padding: 0; color: var(--accent, #2563eb); font: inherit; font-size: 13px; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+  .linkbtn:hover { opacity: .8; }
+  .pwnudge { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0 0 14px; padding: 10px 16px; border: 1px solid var(--line); border-left: 3px solid #2563eb; border-radius: 10px; background: var(--surface); font-size: 13px; }
+  .pwnudge .spacer { flex: 1; }
+  #pwNudge .pwnudge { margin: 16px 24px -6px; }
+  .codein { letter-spacing: 6px; font-size: 20px; font-weight: 700; text-align: center; }
+  .pwok { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: #059669; white-space: nowrap; }
   .keybox { display: flex; gap: 8px; align-items: center; background: var(--surface2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
   .keybox code { flex: 1; font-family: "JetBrains Mono", monospace; font-size: 12px; overflow-wrap: anywhere; }
   .locked { max-width: 460px; margin: 60px auto; text-align: center; color: var(--muted); }
@@ -541,6 +548,7 @@
     <div class="me"><button class="icon-btn" id="meBtn" aria-label="Account menu"><span class="av" id="meAv"></span></button><div class="menu hidden" id="meMenu"></div></div>
   </header>
   <div class="toolbar hidden" id="toolbar"></div>
+  <div id="pwNudge"></div>
   <main id="view"></main>
 </div>
 <div id="modalRoot"></div>
@@ -661,6 +669,8 @@ function doPost(e) {
   try {
     var req = JSON.parse(e.postData.contents || '{}');
     if (req.action === 'login') return json_(login_(req));
+    if (req.action === 'requestCode') return json_(requestCode_(req));
+    if (req.action === 'setOwnPassword') return json_(withLock_(function () { return setOwnPassword_(req); }));
     if (req.action === 'qc') {
       if (!req.qcKey || req.qcKey !== qcKey_()) return json_({ ok: false, error: 'Wrong QC key', auth: false });
       return json_(withLock_(function () { return qcUpdate_(req); }));
@@ -678,6 +688,7 @@ function doPost(e) {
       case 'changeMyPassword': if (!sess.acct) throw new Error('Shared role passwords are changed by the main owner in Settings.'); return json_(changeMyPassword_(req, sess));
       // ---- People page: owners ----
       case 'savePerson':   requireOwner_(sess); return json_(withLock_(function () { return savePerson_(req, sess); }));
+      case 'resetOwnPassword': requireOwner_(sess); return json_(resetOwnPassword_(req, sess));
       case 'removePerson': requireOwner_(sess); return json_(withLock_(function () { return removePerson_(req, sess); }));
       case 'importPeople': requireSuper_(sess); return json_(withLock_(function () { return importPeople_(req, sess); }));
       // ---- Settings page: main owner ----
@@ -787,7 +798,7 @@ function dataFor_(sess) {
   return { ok: true, me: me, today: today_(),
     videos: edOnly ? d.videos.filter(function (v) { return PRE.indexOf(v.status) < 0; }) : d.videos,
     history: admin ? d.history : [],
-    people: getPeople_().map(function (p) { return owner ? p : { name: p.name, tags: p.tags }; }),
+    people: (function () { var own = owner ? ownPwSet_() : {}; if (owner) { var us = getUsers_(); Object.keys(us).forEach(function (k) { if (us[k].email) own[String(us[k].email).toLowerCase()] = true; }); } return getPeople_().map(function (p) { return owner ? { name: p.name, email: p.email, tags: p.tags, ownPw: !!(p.email && own[p.email]) } : { name: p.name, tags: p.tags }; }); })(),
     lists: d.lists, logos: getLogos_() };
 }
 function listsOut_() {
@@ -1008,6 +1019,7 @@ function savePerson_(req, sess) {
   var prev = idx >= 0 ? ppl[idx] : null;
   if (prev && prev.email === superEmail_() && tags.indexOf('owner') < 0) throw new Error('The main owner always keeps the Owner tag.');
   if (tags.indexOf('owner') >= 0 && !(prev && prev.tags.indexOf('owner') >= 0) && !sess.super) throw new Error('Only the main owner can make someone an owner.');
+  if (prev && prev.email && prev.email !== email) clearOwnPw_(prev.email);
   var rec = { name: name, email: email, tags: tags };
   if (idx >= 0) ppl[idx] = rec; else ppl.push(rec);
   writePeople_(ppl);
@@ -1026,6 +1038,7 @@ function removePerson_(req, sess) {
   if (!p) throw new Error('Person not found.');
   if (p.email && p.email === superEmail_()) throw new Error('The main owner can\'t be removed.');
   writePeople_(ppl.filter(function (x) { return x !== p; }));
+  clearOwnPw_(p.email);
   log_(me.name, 'Website', '', '', 'People: removed ' + p.name);
   bustCache_();
   return { ok: true, people: getPeople_() };
@@ -1229,7 +1242,7 @@ function personByEmail_(email) {
 // Tags that count in this session
 function sessionTags_(person, via) {
   var t = person.tags.filter(function (x) { return x !== 'owner' && x !== 'admin'; });
-  if (via === 'admin' || via === 'owner') { if (person.tags.indexOf('admin') >= 0 || via === 'owner') t.push('admin'); }
+  if (via === 'admin' || via === 'owner' || via === 'self') { if (person.tags.indexOf('admin') >= 0 || via === 'owner') t.push('admin'); }
   if (via === 'owner') t.push('owner');
   return t;
 }
@@ -1246,12 +1259,14 @@ function sessionFor_(token) {
     if (!person) person = { name: u.name, email: s.email, tags: ['owner', 'admin'] };
     s.via = 'owner';
   } else {
-    if (!person || person.tags.indexOf(s.via) < 0 || pwVer_(s.via) !== s.pv) return null;
+    if (!person) return null;
+    if (s.via === 'self') { if (ownVer_(s.email) !== s.pv) return null; }
+    else if (person.tags.indexOf(s.via) < 0 || pwVer_(s.via) !== s.pv || ownPw_(s.email)) return null;
   }
   s.name = person.name; s.tags = sessionTags_(person, s.via);
   return s;
 }
-function meOf_(s) { return { name: s.name, email: s.email || '', tags: s.tags || [], super: !!s.super, account: !!s.acct }; }
+function meOf_(s) { return { name: s.name, email: s.email || '', tags: s.tags || [], super: !!s.super, account: !!s.acct, ownPw: !!s.acct || s.via === 'self' }; }
 function requireSuper_(sess) { if (!sess || !sess.super) throw new Error('Only the main owner can change settings.'); }
 function requireOwner_(sess) { if (!sess || (sess.tags || []).indexOf('owner') < 0) throw new Error('Only owners can do this.'); }
 function requireAdmin_(sess) { if (!sess || !isAdminT_(sess.tags || [])) throw new Error('You don\'t have access to this.'); }
@@ -1269,6 +1284,11 @@ function login_(req) {
   var k = Object.keys(users).filter(function (x) { return String(users[x].email || '').toLowerCase() === email; })[0];
   if (k && users[k].hash && hash_(pw, users[k].salt) === users[k].hash) {
     s = { acct: k, email: email, via: 'owner' };
+  } else if (personByEmail_(email) && ownPw_(email)) {
+    // This person set their own password, so only that works for their email.
+    var o = ownPw_(email);
+    if (hash_(pw, o.salt) === o.hash) s = { email: email, via: 'self', pv: o.hash.slice(0, 12) };
+    else { noteFail_(email); return { ok: false, error: 'Wrong password. You set your own password, so the shared one no longer works. Use "Forgot password?" to get a code.', auth: false }; }
   } else {
     var person = personByEmail_(email);
     if (!person) {
@@ -1296,6 +1316,7 @@ function login_(req) {
     if (r) s = { email: email, via: r, pv: pwVer_(r) };
   }
   if (!s) { noteFail_(email); return { ok: false, error: 'Wrong password', auth: false }; }
+  try { CacheService.getScriptCache().remove('fail_' + email); } catch (e) {}
   var token = issueToken_(s);
   var full = sessionFor_(token);
   if (!full) return { ok: false, error: 'Could not sign you in. Ask Saajid to check your tags.' };
@@ -1312,6 +1333,82 @@ function changeMyPassword_(req, sess) {
   saveUsers_(users);
   return { ok: true };
 }
+
+// ---------------------------------------------------------------------
+// Personal passwords: anyone on the team list can set their own, after proving
+// the email is theirs with a 6-digit code sent to it. Once set, the shared role
+// password stops working for that email. Stored as OWNPW_<email> = {salt, hash}.
+// ---------------------------------------------------------------------
+function ownPw_(email) { var raw = props_().getProperty('OWNPW_' + String(email || '').toLowerCase()); return raw ? JSON.parse(raw) : null; }
+function ownVer_(email) { var p = ownPw_(email); return p ? p.hash.slice(0, 12) : ''; }
+function clearOwnPw_(email) { if (email) props_().deleteProperty('OWNPW_' + String(email).toLowerCase()); }
+function ownPwSet_() { var all = props_().getProperties(), out = {}; Object.keys(all).forEach(function (k) { if (k.indexOf('OWNPW_') === 0) out[k.slice(6)] = true; }); return out; }
+function accountKeyFor_(email) { var users = getUsers_(); return Object.keys(users).filter(function (x) { return String(users[x].email || '').toLowerCase() === email; })[0] || ''; }
+
+function requestCode_(req) {
+  var email = String(req.email || '').trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { ok: false, error: 'Enter your work email.' };
+  var person = personByEmail_(email), acct = accountKeyFor_(email);
+  if (!person && !acct) return { ok: false, error: 'This email isn\'t linked to anyone yet. Sign in once with your role\'s shared password (that links it), or ask Saajid to add it on the People page.' };
+  var c = CacheService.getScriptCache();
+  if (c.get('cool_' + email)) return { ok: false, error: 'A code was just sent. Wait a minute before asking for another.' };
+  var sent = Number(c.get('sent_' + email) || 0);
+  if (sent >= 5) return { ok: false, error: 'Too many codes asked for. Try again in an hour.' };
+  var code = String(Math.floor(100000 + Math.random() * 900000));
+  var salt = newSalt_();
+  c.put('code_' + email, JSON.stringify({ salt: salt, hash: hash_(code, salt), tries: 0 }), 900);
+  c.put('cool_' + email, '1', 60);
+  c.put('sent_' + email, String(sent + 1), 3600);
+  var name = person ? person.name : getUsers_()[acct].name;
+  sendCodeMail_(email, name, code);
+  return { ok: true, sent: true };
+}
+function sendCodeMail_(email, name, code) {
+  var first = String(name || '').split(' ')[0] || 'there';
+  MailApp.sendEmail({
+    to: email, name: 'YTB Pipeline',
+    subject: 'Your YTB Pipeline code: ' + code,
+    body: 'Hi ' + first + ',\n\nYour code to set your YTB Pipeline password is ' + code + '.\nIt works for 15 minutes.\n\nIf you didn\'t ask for this, ignore this email. Your password stays the same.\n\nhttps://tracker.ytforbrands.com',
+    htmlBody: '<div style="font-family:Arial,sans-serif;font-size:14px;color:#111">Hi ' + first + ',<br><br>Your code to set your YTB Pipeline password is<br>' +
+      '<div style="font-size:28px;font-weight:700;letter-spacing:6px;margin:12px 0">' + code + '</div>It works for 15 minutes.<br><br>' +
+      '<span style="color:#666">If you didn\'t ask for this, ignore this email. Your password stays the same.</span><br><br><a href="https://tracker.ytforbrands.com">tracker.ytforbrands.com</a></div>'
+  });
+}
+function setOwnPassword_(req) {
+  var email = String(req.email || '').trim().toLowerCase();
+  var code = String(req.code || '').replace(/\D/g, '');
+  var pw = String(req.password || '');
+  var c = CacheService.getScriptCache(), raw = c.get('code_' + email);
+  if (!raw) return { ok: false, error: 'That code has expired. Ask for a new one.' };
+  var rec = JSON.parse(raw);
+  if (hash_(code, rec.salt) !== rec.hash) {
+    rec.tries++;
+    if (rec.tries >= 5) { c.remove('code_' + email); return { ok: false, error: 'Too many wrong codes. Ask for a new one.' }; }
+    c.put('code_' + email, JSON.stringify(rec), 900);
+    return { ok: false, error: 'That code isn\'t right. Check the latest email.' };
+  }
+  if (pw.length < 8) return { ok: false, error: 'Use at least 8 characters.' };
+  var person = personByEmail_(email), acct = accountKeyFor_(email);
+  if (!person && !acct) return { ok: false, error: 'This email isn\'t on the team list anymore.' };
+  if (ROLES && Object.keys(ROLES).some(function (r) { var p = rolePw_(r); return p && hash_(pw, p.salt) === p.hash; })) return { ok: false, error: 'Pick a password of your own, not a shared role password.' };
+  c.remove('code_' + email);
+  if (acct) { var users = getUsers_(); users[acct].salt = newSalt_(); users[acct].hash = hash_(pw, users[acct].salt); saveUsers_(users); }
+  else { var salt = newSalt_(); props_().setProperty('OWNPW_' + email, JSON.stringify({ salt: salt, hash: hash_(pw, salt) })); }
+  try { c.remove('fail_' + email); } catch (e) {}
+  log_(person ? person.name : getUsers_()[acct].name, 'Website', '', '', 'Set their own password');
+  return login_({ email: email, password: pw });
+}
+function resetOwnPassword_(req, sess) {
+  var name = String(req.name || '').trim().toLowerCase();
+  var p = getPeople_().filter(function (x) { return x.name.toLowerCase() === name; })[0];
+  if (!p || !p.email) throw new Error('Person not found.');
+  if (accountKeyFor_(p.email)) throw new Error('The main owner resets their password with "Forgot password?".');
+  clearOwnPw_(p.email);
+  log_(meOf_(sess).name, 'Website', '', '', 'People: cleared ' + p.name + '\'s own password (they use the shared role password again)');
+  return { ok: true, people: dataFor_(sess).people };
+}
+// Run once from the editor after deploying, so Google asks you to allow sending the code emails.
+function authorizeEmail() { Logger.log('Emails left today: ' + MailApp.getRemainingDailyQuota()); }
 function qcKey_() {
   var k = props_().getProperty('QC_KEY');
   if (!k) { k = 'qc-' + Utilities.getUuid().replace(/-/g, '').slice(0, 20); props_().setProperty('QC_KEY', k); }
@@ -1454,6 +1551,7 @@ window.DEMO = (function () {
     LockService: { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) },
     ContentService: { MimeType: { JSON: "json" }, createTextOutput: t => ({ t, setMimeType() { return this; }, getContent() { return this.t; } }) },
     Session: { getActiveUser: () => ({ getEmail: () => "" }) }, Logger: { log() {} },
+    MailApp: { getRemainingDailyQuota: () => 100, sendEmail: o => { const c = (String(o.subject).match(/\d{6}/) || [""])[0]; setTimeout(() => { try { toast("Demo: no real email is sent. The code would be " + c); } catch (e) {} }, 1400); } },
     Utilities: {
       DigestAlgorithm: { SHA_256: 1 }, Charset: { UTF_8: 1 },
       formatDate: (d, tz, f) => { const t = new Date(d.getTime() + 330 * 60000); return f.replace("yyyy", t.getUTCFullYear()).replace("MM", pad(t.getUTCMonth() + 1)).replace("dd", pad(t.getUTCDate())).replace("'T'", "T").replace("HH", pad(t.getUTCHours())).replace("mm", pad(t.getUTCMinutes())); },
@@ -1466,7 +1564,7 @@ window.DEMO = (function () {
     },
   };
   const names = Object.keys(G);
-  const exportsList = ["doPost", "issueToken_", "pwVer_", "videosSheet_", "historySheet_", "peopleSheet_", "activitySheet_", "writePeople_", "rowOf_", "historyRow_", "setRolePassword_", "hash_", "VIDEO_FIELDS", "HISTORY_FIELDS", "VIDEO_HEADERS", "HISTORY_HEADERS", "LOG_HEADERS", "bustCache_", "getPeople_"];
+  const exportsList = ["doPost", "issueToken_", "pwVer_", "videosSheet_", "historySheet_", "peopleSheet_", "activitySheet_", "writePeople_", "rowOf_", "historyRow_", "setRolePassword_", "hash_", "VIDEO_FIELDS", "HISTORY_FIELDS", "VIDEO_HEADERS", "HISTORY_HEADERS", "LOG_HEADERS", "bustCache_", "getPeople_", "ownVer_"];
   const GAS = new Function(...names, document.getElementById("gas-src").textContent + "\nreturn {" + exportsList.join(",") + "};")(...names.map(n => G[n]));
 
   // ---- save / load the pretend sheet in this browser
@@ -1558,6 +1656,8 @@ window.DEMO = (function () {
     init();
     if (p.tags.includes("owner")) return GAS.issueToken_({ acct: "saajid", email: p.email, via: "owner" });
     const via = ["admin", "podlead", "cm", "editor"].find(t => p.tags.includes(t));
+    const own = GAS.ownVer_(p.email);
+    if (own) return GAS.issueToken_({ email: p.email, via: "self", pv: own });
     return GAS.issueToken_({ email: p.email, via, pv: GAS.pwVer_(via) });
   }
   function sheetData() {
@@ -1823,7 +1923,7 @@ function showApp() {
 function logout() {
   if (S.token) api("logout").catch(() => {});
   store.del("ytb_demo_token"); store.del("ytb_demo_cache"); store.del("ytb_demo_asst"); AS.msgs = []; AS.open = false; AS.activity = null; S.activity = null;
-  $("#asstRoot").innerHTML = ""; $("#modalRoot").innerHTML = ""; S.token = ""; S.me = null; S.settings = null; S.draft = null;
+  $("#asstRoot").innerHTML = ""; $("#modalRoot").innerHTML = ""; $("#pwNudge").innerHTML = ""; S.token = ""; S.me = null; S.settings = null; S.draft = null;
   $("#meMenu").classList.add("hidden"); store.del("ytb_demo_who"); $("#app").classList.add("hidden"); $("#login").classList.remove("hidden");
 }
 $("#loginForm").onsubmit = async e => {
@@ -1861,8 +1961,9 @@ function renderHeader() {
   $("#nav").querySelectorAll("button").forEach(b => b.onclick = () => go(b.dataset.v));
   $("#meAv").textContent = initials(S.me.name);
   $("#meMenu").innerHTML = `<div class="who"><b>${esc(S.me.name)}</b><div class="note" style="margin-top:2px">${esc(S.me.email)}</div><div class="pls" style="margin-top:6px">${S.me.tags.map(pill).join("")}</div></div>
-    ${S.me.account ? `<button id="mPw">Change my password</button>` : ""}<button id="mOut">Sign out</button>`;
-  if ($("#mPw")) $("#mPw").onclick = () => { $("#meMenu").classList.add("hidden"); openChangePw(); };
+    <button id="mPw">${S.me.ownPw ? "Change my password" : "Set my own password"}</button><button id="mOut">Sign out</button>`;
+  $("#mPw").onclick = () => { $("#meMenu").classList.add("hidden"); S.me.account ? openChangePw() : openOwnPw(S.me.email, false); };
+  renderPwNudge();
   $("#mOut").onclick = () => logout();
 }
 function go(v) { if (!views().some(x => x[0] === v)) v = "board"; S.view = v; window.scrollTo(0, 0); S.anim = true; render(); }
@@ -2282,7 +2383,7 @@ function renderPeople() {
   const noEmail = D.people.filter(p => !p.email).length;
   const newTags = S.newTags || (S.newTags = ["editor"]);
   $("#view").innerHTML = `<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap"><h1 class="grot" style="margin:0;font-size:22px">People</h1>
-      <span class="note">Everyone signs in with the email here and the password for one of their roles. Tags decide what they can see and change.</span></div>
+      <span class="note">Everyone signs in with the email here and either their own password or the shared password for one of their roles. Tags decide what they can see and change.</span></div>
     ${noEmail ? `<div class="panel" style="margin-bottom:14px;border-color:#f59e0b"><div class="pad" style="padding:12px 18px"><b>${noEmail} ${noEmail === 1 ? "person has" : "people have"} no email yet</b> <span class="note">, so they can't sign in. Add their work email below.</span></div></div>` : ""}
     <div class="panel">
       <div class="people-tools"><button class="pl ${P.tag ? "off" : ""}" data-ft="" style="--c:#6b7280">Everyone ${D.people.length}</button>
@@ -2291,10 +2392,11 @@ function renderPeople() {
       <div class="addp"><input class="input" id="npName" placeholder="Full name" autocomplete="off" style="max-width:220px"><input class="input" id="npEmail" type="email" placeholder="work email" autocomplete="off" style="max-width:240px">
         <div class="pls">${TAGS.filter(t => t.k !== "owner").map(t => `<button class="pl ${newTags.includes(t.k) ? "" : "off"}" data-nt="${t.k}" style="--c:${t.c}">${t.label}</button>`).join("")}</div>
         <button class="btn primary" id="npAdd" style="margin-left:auto">Add person</button><span class="err" id="npErr" style="flex-basis:100%;min-height:0"></span></div>
-      <div class="tbl-wrap"><table><thead><tr><th style="cursor:default">Name</th><th style="cursor:default">Email</th><th style="cursor:default">Tags <small style="text-transform:none;letter-spacing:0;font-weight:400">· click a tag to turn it on or off</small></th><th style="cursor:default"></th></tr></thead>
+      <div class="tbl-wrap"><table><thead><tr><th style="cursor:default">Name</th><th style="cursor:default">Email</th><th style="cursor:default">Tags <small style="text-transform:none;letter-spacing:0;font-weight:400">· click a tag to turn it on or off</small></th><th style="cursor:default">Password</th><th style="cursor:default"></th></tr></thead>
       <tbody>${L.map((p, i) => `<tr style="--i:${Math.min(i, 30)}"><td style="white-space:nowrap"><span class="av" style="margin-right:8px">${initials(p.name)}</span><b style="font-weight:600">${esc(p.name)}</b>${p.name === S.me.name ? ` <span class="note">(you)</span>` : ""}</td>
         <td style="min-width:240px"><input class="input" data-em="${esc(p.name)}" type="email" value="${esc(p.email || "")}" placeholder="add work email" style="height:34px;${p.email ? "" : "border-color:#f59e0b"}" aria-label="Email for ${esc(p.name)}"></td>
         <td><div class="pls">${TAGS.map(t => `<button class="pl ${p.tags.includes(t.k) ? "" : "off"}" data-p="${esc(p.name)}" data-t="${t.k}" style="--c:${t.c}">${t.label}</button>`).join("")}</div></td>
+        <td style="white-space:nowrap">${p.ownPw ? `<span class="pwok" title="Signs in with their own password">✓ Own password</span>${p.email !== S.me.email ? ` <button class="btn small" data-rpw="${esc(p.name)}" title="They go back to the shared role password and can set a new one">Reset</button>` : ""}` : `<span class="note">Shared password</span>`}</td>
         <td style="text-align:right;white-space:nowrap">${p.email && p.email === S.me.email ? `<span class="note">You</span>` : `<button class="btn small danger" data-rm="${esc(p.name)}">Remove</button>`}</td></tr>`).join("")}</tbody></table></div>
     </div>`;
   const savePerson = async (p, changes, msg) => {
@@ -2319,6 +2421,9 @@ function renderPeople() {
     const tags = p.tags.includes(k) ? p.tags.filter(x => x !== k) : p.tags.concat(k);
     savePerson(p, { tags }, `${p.name} ${tags.includes(k) ? "given" : "lost"} the ${TAG[k].label} tag`);
   });
+  document.querySelectorAll("[data-rpw]").forEach(b => b.onclick = async () => { if (!b.classList.contains("confirm")) { b.classList.add("confirm"); b.textContent = "Click again"; return; }
+    try { const r = await api("resetOwnPassword", { name: b.dataset.rpw }); D.people = r.people; cacheNow(); toast(`${b.dataset.rpw} uses the shared password again`); } catch (e) { toast(e.message, true); }
+    renderPeople(); });
   document.querySelectorAll("[data-rm]").forEach(b => b.onclick = async () => { if (!b.classList.contains("confirm")) { b.classList.add("confirm"); b.textContent = "Click again"; return; }
     try { const r = await api("removePerson", { name: b.dataset.rm }); D.people = r.people; cacheNow(); toast(`Removed ${b.dataset.rm}`); } catch (e) { toast(e.message, true); }
     renderPeople(); });
@@ -2344,6 +2449,74 @@ function openChangePw() {
   };
   setTimeout(() => root.querySelector("#np0").focus(), 30);
 }
+
+// ---------------------------------------------------------------- set your own password (code sent to your work email)
+function renderPwNudge() {
+  const box = $("#pwNudge"); if (!box) return;
+  if (!S.me || S.me.ownPw || store.get("ytb_pwlater") === S.me.email + "|" + new Date().toDateString()) { box.innerHTML = ""; return; }
+  box.innerHTML = `<div class="pwnudge"><span>🔒 <b>Set your own password.</b> <span class="note">You're signed in with your role's shared password. We'll email a code to ${esc(S.me.email)}.</span></span><span class="spacer"></span>
+    <button class="btn small" id="pwLater">Later</button><button class="btn small primary" id="pwNow">Set it now</button></div>`;
+  $("#pwLater").onclick = () => { store.set("ytb_pwlater", S.me.email + "|" + new Date().toDateString()); renderPwNudge(); };
+  $("#pwNow").onclick = () => openOwnPw(S.me.email, false);
+}
+function openOwnPw(email, fromLogin) {
+  const root = document.createElement("div");
+  const changing = !fromLogin && S.me && S.me.ownPw;
+  root.innerHTML = `<div class="backdrop"><div class="modal sm" role="dialog" aria-label="Set your password"><div class="modal-h"><h3>${changing ? "Change my password" : "Set your own password"}</h3><button class="x" aria-label="Close">×</button></div>
+    <div class="tm-body" id="opBody"></div>
+    <div class="modal-f"><span class="err" id="opE" style="flex:1"></span><button class="btn" data-c>Cancel</button><button class="btn primary" id="opGo"></button></div></div></div>`;
+  document.body.appendChild(root);
+  const q = sel => root.querySelector(sel);
+  const close = () => root.remove();
+  q(".x").onclick = close; q("[data-c]").onclick = close;
+  const busy = (on, label) => { q("#opGo").disabled = on; q("#opGo").textContent = label; };
+  let step = 1;
+  const stepOne = () => {
+    step = 1;
+    q("#opBody").innerHTML = fromLogin
+      ? `<div class="note" style="margin-bottom:10px">We'll email a 6-digit code to your work email. Use it to set a password only you know.</div>
+         <div class="field"><label for="opEm">Work email</label><input class="input" type="email" id="opEm" value="${esc(email || "")}" autocomplete="username"></div>`
+      : `<div class="note">We'll email a 6-digit code to <b>${esc(email)}</b>. Use it to set a password only you know. After that, the shared ${S.me && S.me.account ? "" : "role "}password stops working for you.</div>`;
+    busy(false, "Email me a code"); q("#opE").textContent = "";
+    setTimeout(() => (q("#opEm") || q("#opGo")).focus(), 30);
+  };
+  const stepTwo = () => {
+    step = 2;
+    q("#opBody").innerHTML = `<div class="note" style="margin-bottom:10px">Code sent to <b>${esc(email)}</b>. It works for 15 minutes. Check spam if you don't see it.</div>
+      <div class="field"><label for="opCode">6-digit code</label><input class="input codein" id="opCode" inputmode="numeric" maxlength="6" autocomplete="one-time-code"></div>
+      <div class="field"><label for="opP1">New password <small>(8+ characters)</small></label><input class="input" type="password" id="opP1" autocomplete="new-password"></div>
+      <div class="field"><label for="opP2">Type it again</label><input class="input" type="password" id="opP2" autocomplete="new-password"></div>
+      <button type="button" class="linkbtn" id="opResend" style="font-size:12px">Send a new code</button>`;
+    q("#opResend").onclick = () => send();
+    busy(false, "Save password"); setTimeout(() => q("#opCode").focus(), 30);
+  };
+  const send = async () => {
+    if (q("#opEm")) email = q("#opEm").value.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email || "")) return (q("#opE").textContent = "Enter your work email.");
+    q("#opE").textContent = ""; busy(true, "Sending…");
+    try { await api("requestCode", { email }); stepTwo(); toast("Code sent to " + email); }
+    catch (e) { q("#opE").textContent = e.message === "Failed to fetch" ? "Can't reach the tracker right now." : e.message; busy(false, step === 1 ? "Email me a code" : "Save password"); }
+  };
+  const save = async () => {
+    const code = q("#opCode").value.replace(/\D/g, ""), a = q("#opP1").value, b = q("#opP2").value;
+    if (code.length !== 6) return (q("#opE").textContent = "Enter the 6-digit code from the email.");
+    if (a.length < 8) return (q("#opE").textContent = "Use at least 8 characters.");
+    if (a !== b) return (q("#opE").textContent = "The two passwords don't match.");
+    q("#opE").textContent = ""; busy(true, "Saving…");
+    try {
+      const r = await api("setOwnPassword", { email, code, password: a });
+      close();
+      store.set("ytb_email", email); S.token = r.token; store.set("ytb_demo_token", r.token);
+      applyData(r); cacheNow();
+      if (fromLogin) { $("#lpw").value = ""; if ($("#lclaimBox")) $("#lclaimBox").remove(); $("#loginErr").textContent = ""; showApp(); } else render();
+      toast("Password saved. Use it next time you sign in.");
+    } catch (e) { q("#opE").textContent = e.message; busy(false, "Save password"); }
+  };
+  q("#opGo").onclick = () => step === 1 ? send() : save();
+  root.addEventListener("keydown", e => { if (e.key === "Enter" && e.target.tagName === "INPUT") { e.preventDefault(); q("#opGo").click(); } if (e.key === "Escape") close(); });
+  stepOne();
+}
+if ($("#lForgot")) $("#lForgot").onclick = () => openOwnPw($("#lemail").value.trim().toLowerCase(), true);
 
 let toastTimer;
 function toast(msg, bad) {

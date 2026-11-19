@@ -191,6 +191,13 @@
   .role { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; text-transform: capitalize; }
   .role.owner { background: var(--accentSoft); color: var(--accent); } .role.admin { background: var(--longBg); color: var(--longText); }
   .note { color: var(--muted); font-size: 12px; line-height: 1.5; }
+  .linkbtn { background: none; border: 0; padding: 0; color: var(--accent, #2563eb); font: inherit; font-size: 13px; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+  .linkbtn:hover { opacity: .8; }
+  .pwnudge { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0 0 14px; padding: 10px 16px; border: 1px solid var(--line); border-left: 3px solid #2563eb; border-radius: 10px; background: var(--surface); font-size: 13px; }
+  .pwnudge .spacer { flex: 1; }
+  #pwNudge .pwnudge { margin: 16px 24px -6px; }
+  .codein { letter-spacing: 6px; font-size: 20px; font-weight: 700; text-align: center; }
+  .pwok { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: #059669; white-space: nowrap; }
   .keybox { display: flex; gap: 8px; align-items: center; background: var(--surface2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
   .keybox code { flex: 1; font-family: "JetBrains Mono", monospace; font-size: 12px; overflow-wrap: anywhere; }
   .locked { max-width: 460px; margin: 60px auto; text-align: center; color: var(--muted); }
@@ -500,13 +507,14 @@
       <span class="knob"></span></button>
     <div>
       <div class="brand grot"><span class="logo" role="img" aria-label="YT4B"></span>YTB Pipeline</div>
-      <p>Sign in with your work email and the password for your role.</p>
+      <p>Sign in with your work email and your password.</p>
     </div>
     <div class="field"><label for="lemail">Work email</label><input class="input" type="email" id="lemail" autocomplete="username" placeholder="name@ytforbrands.com"></div>
     <div class="field"><label for="lpw">Password</label><input class="input" type="password" id="lpw" autocomplete="current-password"></div>
     <div class="err" id="loginErr"></div>
     <button class="btn primary" id="loginBtn" style="height:42px;justify-content:center">Sign in</button>
-    <div class="note" style="text-align:center">Editors, content managers, pod leads and admins each have a shared password. Ask Saajid if you don't have it.</div>
+    <div style="text-align:center"><button type="button" class="linkbtn" id="lForgot">Forgot password? Set your own</button></div>
+    <div class="note" style="text-align:center">Haven't set your own password yet? Use your role's shared password, then set your own from the menu.</div>
   </form>
 </div>
 
@@ -523,6 +531,7 @@
     <div class="me"><button class="icon-btn" id="meBtn" aria-label="Account menu"><span class="av" id="meAv"></span></button><div class="menu hidden" id="meMenu"></div></div>
   </header>
   <div class="toolbar hidden" id="toolbar"></div>
+  <div id="pwNudge"></div>
   <main id="view"></main>
 </div>
 <div id="modalRoot"></div>
@@ -765,7 +774,7 @@ async function load(silent) {
     return false;
   }
 }
-function authLost() { logout(); $("#loginErr").textContent = "Please sign in again (your role's password was changed, your tags changed, or everyone was signed out)."; }
+function authLost() { logout(); $("#loginErr").textContent = "Please sign in again (your password was changed, your tags changed, or everyone was signed out)."; }
 // First sign-in with an email the tracker doesn't know yet: pick your name once to link it
 function showClaim(d) {
   let box = $("#lclaimBox");
@@ -784,7 +793,7 @@ function showApp() {
 function logout() {
   if (S.token) api("logout").catch(() => {});
   store.del("ytb_token"); store.del("ytb_cache2"); store.del("ytb_asst"); AS.msgs = []; AS.open = false; AS.activity = null; S.activity = null;
-  $("#asstRoot").innerHTML = ""; $("#modalRoot").innerHTML = ""; S.token = ""; S.me = null; S.settings = null; S.draft = null;
+  $("#asstRoot").innerHTML = ""; $("#modalRoot").innerHTML = ""; $("#pwNudge").innerHTML = ""; S.token = ""; S.me = null; S.settings = null; S.draft = null;
   $("#meMenu").classList.add("hidden"); showLogin();
 }
 $("#loginForm").onsubmit = async e => {
@@ -821,8 +830,9 @@ function renderHeader() {
   $("#nav").querySelectorAll("button").forEach(b => b.onclick = () => go(b.dataset.v));
   $("#meAv").textContent = initials(S.me.name);
   $("#meMenu").innerHTML = `<div class="who"><b>${esc(S.me.name)}</b><div class="note" style="margin-top:2px">${esc(S.me.email)}</div><div class="pls" style="margin-top:6px">${S.me.tags.map(pill).join("")}</div></div>
-    ${S.me.account ? `<button id="mPw">Change my password</button>` : ""}<button id="mOut">Sign out</button>`;
-  if ($("#mPw")) $("#mPw").onclick = () => { $("#meMenu").classList.add("hidden"); openChangePw(); };
+    <button id="mPw">${S.me.ownPw ? "Change my password" : "Set my own password"}</button><button id="mOut">Sign out</button>`;
+  $("#mPw").onclick = () => { $("#meMenu").classList.add("hidden"); S.me.account ? openChangePw() : openOwnPw(S.me.email, false); };
+  renderPwNudge();
   $("#mOut").onclick = () => logout();
 }
 function go(v) { if (!views().some(x => x[0] === v)) v = "board"; S.view = v; window.scrollTo(0, 0); S.anim = true; render(); }
@@ -1241,7 +1251,7 @@ function renderPeople() {
   const noEmail = D.people.filter(p => !p.email).length;
   const newTags = S.newTags || (S.newTags = ["editor"]);
   $("#view").innerHTML = `<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap"><h1 class="grot" style="margin:0;font-size:22px">People</h1>
-      <span class="note">Everyone signs in with the email here and the password for one of their roles. Tags decide what they can see and change.</span></div>
+      <span class="note">Everyone signs in with the email here and either their own password or the shared password for one of their roles. Tags decide what they can see and change.</span></div>
     ${noEmail ? `<div class="panel" style="margin-bottom:14px;border-color:#f59e0b"><div class="pad" style="padding:12px 18px"><b>${noEmail} ${noEmail === 1 ? "person has" : "people have"} no email yet</b> <span class="note">, so they can't sign in. Add their work email below.</span></div></div>` : ""}
     <div class="panel">
       <div class="people-tools"><button class="pl ${P.tag ? "off" : ""}" data-ft="" style="--c:#6b7280">Everyone ${D.people.length}</button>
@@ -1250,10 +1260,11 @@ function renderPeople() {
       <div class="addp"><input class="input" id="npName" placeholder="Full name" autocomplete="off" style="max-width:220px"><input class="input" id="npEmail" type="email" placeholder="work email" autocomplete="off" style="max-width:240px">
         <div class="pls">${TAGS.filter(t => t.k !== "owner").map(t => `<button class="pl ${newTags.includes(t.k) ? "" : "off"}" data-nt="${t.k}" style="--c:${t.c}">${t.label}</button>`).join("")}</div>
         <button class="btn primary" id="npAdd" style="margin-left:auto">Add person</button><span class="err" id="npErr" style="flex-basis:100%;min-height:0"></span></div>
-      <div class="tbl-wrap"><table><thead><tr><th style="cursor:default">Name</th><th style="cursor:default">Email</th><th style="cursor:default">Tags <small style="text-transform:none;letter-spacing:0;font-weight:400">· click a tag to turn it on or off</small></th><th style="cursor:default"></th></tr></thead>
+      <div class="tbl-wrap"><table><thead><tr><th style="cursor:default">Name</th><th style="cursor:default">Email</th><th style="cursor:default">Tags <small style="text-transform:none;letter-spacing:0;font-weight:400">· click a tag to turn it on or off</small></th><th style="cursor:default">Password</th><th style="cursor:default"></th></tr></thead>
       <tbody>${L.map((p, i) => `<tr style="--i:${Math.min(i, 30)}"><td style="white-space:nowrap"><span class="av" style="margin-right:8px">${initials(p.name)}</span><b style="font-weight:600">${esc(p.name)}</b>${p.name === S.me.name ? ` <span class="note">(you)</span>` : ""}</td>
         <td style="min-width:240px"><input class="input" data-em="${esc(p.name)}" type="email" value="${esc(p.email || "")}" placeholder="add work email" style="height:34px;${p.email ? "" : "border-color:#f59e0b"}" aria-label="Email for ${esc(p.name)}"></td>
         <td><div class="pls">${TAGS.map(t => `<button class="pl ${p.tags.includes(t.k) ? "" : "off"}" data-p="${esc(p.name)}" data-t="${t.k}" style="--c:${t.c}">${t.label}</button>`).join("")}</div></td>
+        <td style="white-space:nowrap">${p.ownPw ? `<span class="pwok" title="Signs in with their own password">✓ Own password</span>${p.email !== S.me.email ? ` <button class="btn small" data-rpw="${esc(p.name)}" title="They go back to the shared role password and can set a new one">Reset</button>` : ""}` : `<span class="note">Shared password</span>`}</td>
         <td style="text-align:right;white-space:nowrap">${p.email && p.email === S.me.email ? `<span class="note">You</span>` : `<button class="btn small danger" data-rm="${esc(p.name)}">Remove</button>`}</td></tr>`).join("")}</tbody></table></div>
     </div>`;
   const savePerson = async (p, changes, msg) => {
@@ -1278,6 +1289,9 @@ function renderPeople() {
     const tags = p.tags.includes(k) ? p.tags.filter(x => x !== k) : p.tags.concat(k);
     savePerson(p, { tags }, `${p.name} ${tags.includes(k) ? "given" : "lost"} the ${TAG[k].label} tag`);
   });
+  document.querySelectorAll("[data-rpw]").forEach(b => b.onclick = async () => { if (!b.classList.contains("confirm")) { b.classList.add("confirm"); b.textContent = "Click again"; return; }
+    try { const r = await api("resetOwnPassword", { name: b.dataset.rpw }); D.people = r.people; cacheNow(); toast(`${b.dataset.rpw} uses the shared password again`); } catch (e) { toast(e.message, true); }
+    renderPeople(); });
   document.querySelectorAll("[data-rm]").forEach(b => b.onclick = async () => { if (!b.classList.contains("confirm")) { b.classList.add("confirm"); b.textContent = "Click again"; return; }
     try { const r = await api("removePerson", { name: b.dataset.rm }); D.people = r.people; cacheNow(); toast(`Removed ${b.dataset.rm}`); } catch (e) { toast(e.message, true); }
     renderPeople(); });
@@ -1303,6 +1317,74 @@ function openChangePw() {
   };
   setTimeout(() => root.querySelector("#np0").focus(), 30);
 }
+
+// ---------------------------------------------------------------- set your own password (code sent to your work email)
+function renderPwNudge() {
+  const box = $("#pwNudge"); if (!box) return;
+  if (!S.me || S.me.ownPw || store.get("ytb_pwlater") === S.me.email + "|" + new Date().toDateString()) { box.innerHTML = ""; return; }
+  box.innerHTML = `<div class="pwnudge"><span>🔒 <b>Set your own password.</b> <span class="note">You're signed in with your role's shared password. We'll email a code to ${esc(S.me.email)}.</span></span><span class="spacer"></span>
+    <button class="btn small" id="pwLater">Later</button><button class="btn small primary" id="pwNow">Set it now</button></div>`;
+  $("#pwLater").onclick = () => { store.set("ytb_pwlater", S.me.email + "|" + new Date().toDateString()); renderPwNudge(); };
+  $("#pwNow").onclick = () => openOwnPw(S.me.email, false);
+}
+function openOwnPw(email, fromLogin) {
+  const root = document.createElement("div");
+  const changing = !fromLogin && S.me && S.me.ownPw;
+  root.innerHTML = `<div class="backdrop"><div class="modal sm" role="dialog" aria-label="Set your password"><div class="modal-h"><h3>${changing ? "Change my password" : "Set your own password"}</h3><button class="x" aria-label="Close">×</button></div>
+    <div class="tm-body" id="opBody"></div>
+    <div class="modal-f"><span class="err" id="opE" style="flex:1"></span><button class="btn" data-c>Cancel</button><button class="btn primary" id="opGo"></button></div></div></div>`;
+  document.body.appendChild(root);
+  const q = sel => root.querySelector(sel);
+  const close = () => root.remove();
+  q(".x").onclick = close; q("[data-c]").onclick = close;
+  const busy = (on, label) => { q("#opGo").disabled = on; q("#opGo").textContent = label; };
+  let step = 1;
+  const stepOne = () => {
+    step = 1;
+    q("#opBody").innerHTML = fromLogin
+      ? `<div class="note" style="margin-bottom:10px">We'll email a 6-digit code to your work email. Use it to set a password only you know.</div>
+         <div class="field"><label for="opEm">Work email</label><input class="input" type="email" id="opEm" value="${esc(email || "")}" autocomplete="username"></div>`
+      : `<div class="note">We'll email a 6-digit code to <b>${esc(email)}</b>. Use it to set a password only you know. After that, the shared ${S.me && S.me.account ? "" : "role "}password stops working for you.</div>`;
+    busy(false, "Email me a code"); q("#opE").textContent = "";
+    setTimeout(() => (q("#opEm") || q("#opGo")).focus(), 30);
+  };
+  const stepTwo = () => {
+    step = 2;
+    q("#opBody").innerHTML = `<div class="note" style="margin-bottom:10px">Code sent to <b>${esc(email)}</b>. It works for 15 minutes. Check spam if you don't see it.</div>
+      <div class="field"><label for="opCode">6-digit code</label><input class="input codein" id="opCode" inputmode="numeric" maxlength="6" autocomplete="one-time-code"></div>
+      <div class="field"><label for="opP1">New password <small>(8+ characters)</small></label><input class="input" type="password" id="opP1" autocomplete="new-password"></div>
+      <div class="field"><label for="opP2">Type it again</label><input class="input" type="password" id="opP2" autocomplete="new-password"></div>
+      <button type="button" class="linkbtn" id="opResend" style="font-size:12px">Send a new code</button>`;
+    q("#opResend").onclick = () => send();
+    busy(false, "Save password"); setTimeout(() => q("#opCode").focus(), 30);
+  };
+  const send = async () => {
+    if (q("#opEm")) email = q("#opEm").value.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email || "")) return (q("#opE").textContent = "Enter your work email.");
+    q("#opE").textContent = ""; busy(true, "Sending…");
+    try { await api("requestCode", { email }); stepTwo(); toast("Code sent to " + email); }
+    catch (e) { q("#opE").textContent = e.message === "Failed to fetch" ? "Can't reach the tracker right now." : e.message; busy(false, step === 1 ? "Email me a code" : "Save password"); }
+  };
+  const save = async () => {
+    const code = q("#opCode").value.replace(/\D/g, ""), a = q("#opP1").value, b = q("#opP2").value;
+    if (code.length !== 6) return (q("#opE").textContent = "Enter the 6-digit code from the email.");
+    if (a.length < 8) return (q("#opE").textContent = "Use at least 8 characters.");
+    if (a !== b) return (q("#opE").textContent = "The two passwords don't match.");
+    q("#opE").textContent = ""; busy(true, "Saving…");
+    try {
+      const r = await api("setOwnPassword", { email, code, password: a });
+      close();
+      store.set("ytb_email", email); S.token = r.token; store.set("ytb_token", r.token);
+      applyData(r); cacheNow();
+      if (fromLogin) { $("#lpw").value = ""; if ($("#lclaimBox")) $("#lclaimBox").remove(); $("#loginErr").textContent = ""; showApp(); } else render();
+      toast("Password saved. Use it next time you sign in.");
+    } catch (e) { q("#opE").textContent = e.message; busy(false, "Save password"); }
+  };
+  q("#opGo").onclick = () => step === 1 ? send() : save();
+  root.addEventListener("keydown", e => { if (e.key === "Enter" && e.target.tagName === "INPUT") { e.preventDefault(); q("#opGo").click(); } if (e.key === "Escape") close(); });
+  stepOne();
+}
+$("#lForgot").onclick = () => openOwnPw($("#lemail").value.trim().toLowerCase(), true);
 
 let toastTimer;
 function toast(msg, bad) {
