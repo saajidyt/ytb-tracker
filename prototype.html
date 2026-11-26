@@ -891,13 +891,10 @@ function missing_(v) {
   var m = [], i = stIdx_(v.status === 'On hold' ? 'Not started' : v.status);
   var need = function (k, l) { if (!String(v[k] === undefined || v[k] === null ? '' : v[k]).trim()) m.push(l); };
   need('title', 'Video title'); need('client', 'Channel'); need('format', 'Format'); need('cm', 'Content manager');
-  if (i >= stIdx_('Shoot done')) need('shootDate', 'Shoot date');
-  if (i >= stIdx_('Content cut')) need('cutDate', 'Content cut date');
-  if (i >= stIdx_('Handed over')) { need('handoverDate', 'Handover date'); need('podLead', 'Pod lead'); }
-  if (i >= stIdx_('Not started')) { need('editor', 'Main editor'); need('shift', 'Day slot'); need('assignedDate', 'Assigned date'); need('dueDate', 'Due date'); }
-  if (i >= stIdx_('Internal review') && v.status !== 'On hold') need('firstDraftDate', 'First draft date');
-  if (stIdx_(v.status) >= stIdx_('Approved')) need('approvedDate', 'Approved date');
-  if (v.status === 'Uploaded' || v.status === 'Published') { need('finalLink', 'Final file (Drive) link'); need('uploadedDate', 'Upload date'); }
+  // Required fields (26 Nov 2026): only these. Stage dates are stamped automatically when a card moves.
+  if (i >= stIdx_('Handed over')) need('podLead', 'Pod lead');
+  if (i >= stIdx_('Not started')) { need('editor', 'Main editor'); need('dueDate', 'Due date'); }
+  if (v.status === 'Uploaded' || v.status === 'Published') need('finalLink', 'Final file (Drive) link');
   if (v.status === 'Published') need('publishedDate', 'Publish date');
   return m;
 }
@@ -1918,13 +1915,10 @@ function missing(v) {
   const m = []; const i = stIdx(v.status === "On hold" ? "Not started" : v.status);
   const need = (k, l) => { if (!String(v[k] ?? "").trim()) m.push([k, l]); };
   need("title", "Video title"); need("client", "Channel"); need("format", "Format"); need("cm", "Content manager");
-  if (i >= stIdx("Shoot done")) need("shootDate", "Shoot date");
-  if (i >= stIdx("Content cut")) need("cutDate", "Content cut date");
-  if (i >= stIdx("Handed over")) { need("handoverDate", "Handover date"); need("podLead", "Pod lead"); }
-  if (i >= stIdx("Not started")) { need("editor", "Main editor"); need("shift", "Day slot"); need("assignedDate", "Assigned date"); need("dueDate", "Due date"); }
-  if (i >= stIdx("Internal review") && v.status !== "On hold") need("firstDraftDate", "First draft date");
-  if (stIdx(v.status) >= stIdx("Approved")) need("approvedDate", "Approved date");
-  if (["Uploaded", "Published"].includes(v.status)) { need("finalLink", "Final file (Drive) link"); need("uploadedDate", "Upload date"); }
+  // Required fields (26 Nov 2026): only these. Stage dates are stamped automatically when a card moves.
+  if (i >= stIdx("Handed over")) need("podLead", "Pod lead");
+  if (i >= stIdx("Not started")) { need("editor", "Main editor"); need("dueDate", "Due date"); }
+  if (["Uploaded", "Published"].includes(v.status)) need("finalLink", "Final file (Drive) link");
   if (v.status === "Published") need("publishedDate", "Publish date");
   return m;
 }
