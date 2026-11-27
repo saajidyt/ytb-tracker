@@ -369,6 +369,57 @@
     #login { padding: 14px; grid-template-columns: minmax(0, 1fr); } .login-card { padding: 26px 20px; width: 100%; max-width: 420px; justify-self: center; }
   }
   @media (max-width: 700px) { .protobar { padding: 6px 12px; gap: 6px 10px; } }
+  /* ---------- Alerts bell, devices, Calendar, Workload (27 Nov 2026) */
+  .bellw { position: relative; }
+  .bdg { position: absolute; top: 2px; right: 0; min-width: 17px; height: 17px; border-radius: 9px; background: #dc2626; color: #fff; font-size: 10.5px; font-weight: 700; display: flex; align-items: center; justify-content: center; padding: 0 4px; pointer-events: none; }
+  .bellmenu { width: 360px; max-height: 70vh; overflow: auto; padding: 0; }
+  .bellmenu .bh { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid var(--line); font-weight: 600; position: sticky; top: 0; background: var(--surface); }
+  .bellmenu .bi { display: flex; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--line2); width: 100%; text-align: left; background: none; border-left: 0; border-right: 0; border-top: 0; cursor: pointer; font: inherit; color: inherit; border-radius: 0; }
+  .bellmenu .bi:hover { background: var(--surface2); }
+  .bellmenu .bi.new { background: var(--accentSoft); }
+  .bellmenu .bk { flex: none; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; }
+  .bellmenu .bt { font-size: 13px; line-height: 1.4; }
+  .bellmenu .bm { color: var(--muted); font-size: 11.5px; margin-top: 2px; }
+  .cal-h { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+  .cal-h h1 { margin: 0; font-size: 22px; min-width: 190px; }
+  .cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .cal .dh { background: var(--surface2); padding: 8px 10px; font-size: 11.5px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  .cal .dc { background: var(--surface); min-height: 112px; padding: 6px; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .cal .dc.out { background: var(--surface2); }
+  .cal .dc.out .dn { opacity: .45; }
+  .cal .dc.today { box-shadow: inset 0 0 0 2px var(--accent); }
+  .cal .dn { font-size: 12px; font-weight: 600; color: var(--muted); padding: 2px 4px; }
+  .ev { display: block; width: 100%; text-align: left; border: 0; font: inherit; font-size: 11.5px; line-height: 1.3; border-radius: 5px; padding: 3px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; background: var(--longBg, #e0e7ff); color: var(--text); }
+  .ev.short { background: var(--shortBg, #fce7f3); }
+  .ev.pub { background: var(--greenBg); color: var(--green); font-weight: 600; }
+  .ev.late { box-shadow: inset 3px 0 0 var(--red); }
+  .cal .more { font-size: 11px; color: var(--muted); padding: 0 6px; border: 0; background: none; text-align: left; cursor: pointer; }
+  .cal-key { display: flex; gap: 14px; flex-wrap: wrap; color: var(--muted); font-size: 12px; margin-top: 10px; align-items: center; }
+  .cal-key i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 5px; vertical-align: -2px; }
+  .agenda .ad { padding: 10px 14px; border-top: 1px solid var(--line2); }
+  .agenda .ad b { display: block; font-size: 13px; margin-bottom: 6px; }
+  .agenda .ad .ev { margin-bottom: 4px; white-space: normal; }
+  .wl-row { display: grid; grid-template-columns: 190px minmax(0, 1fr) 120px; gap: 14px; align-items: center; padding: 12px 18px; border-top: 1px solid var(--line2); }
+  .wl-row .who { display: flex; gap: 10px; align-items: center; font-weight: 600; min-width: 0; }
+  .wl-chips { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
+  .wl-chip { border: 1px solid var(--line); background: var(--surface2); border-radius: 8px; padding: 5px 9px; font: inherit; font-size: 12px; cursor: pointer; text-align: left; max-width: 260px; color: var(--text); display: flex; flex-direction: column; gap: 1px; }
+  .wl-chip:hover { border-color: var(--accent); }
+  .wl-chip .t { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+  .wl-chip .m { color: var(--muted); font-size: 11px; display: flex; gap: 6px; align-items: center; }
+  .wl-chip.wait { opacity: .75; border-style: dashed; }
+  .wl-chip.late .m b { color: var(--red); }
+  .wl-load { font-weight: 700; font-size: 12.5px; text-align: right; }
+  .wl-bar { height: 6px; border-radius: 3px; background: var(--line); margin-top: 5px; overflow: hidden; }
+  .wl-bar span { display: block; height: 100%; border-radius: 3px; }
+  .dev-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line2); }
+  .dev-row:last-child { border-bottom: 0; }
+  @media (max-width: 700px) {
+    .bellmenu { position: fixed; left: 8px; right: 8px; top: 54px; width: auto; }
+    .wl-row { grid-template-columns: minmax(0, 1fr) 90px; } .wl-row .wl-chips { grid-column: 1 / -1; grid-row: 2; }
+    .wl-head { display: none !important; }
+    #refreshBtn { display: none; }
+    header .me .icon-btn { min-width: 30px; padding: 0 4px; }
+  }
   @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 
   /* ---------- dark styles (picked in the bar at the top) ---------- */
@@ -590,6 +641,7 @@
       <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
       <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
       <span class="knob"></span></button>
+    <div class="me bellw"><button class="icon-btn" id="bellBtn" aria-label="Alerts"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.1" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span class="bdg hidden" id="bellN"></span></button><div class="menu bellmenu hidden" id="bellMenu"></div></div>
     <div class="me"><button class="icon-btn" id="meBtn" aria-label="Account menu"><span class="av" id="meAv"></span></button><div class="menu hidden" id="meMenu"></div></div>
   </header>
   <div class="toolbar hidden" id="toolbar"></div>
@@ -729,7 +781,16 @@ function doPost(e) {
       case 'update':   return json_(withLock_(function () { return updateVideo_(String(req.id || ''), req.changes || {}, sess); }));
       case 'delete':   return json_(withLock_(function () { return deleteVideo_(String(req.id || ''), sess); }));
       case 'activity': requireAdmin_(sess); return json_(getActivity_(req));
-      case 'logout':   return json_({ ok: true });
+      case 'logout':   endSession_(sess.email, sess.sid); return json_({ ok: true });
+      // ---- Alerts ----
+      case 'inboxSeen':  props_().setProperty('SEEN_' + sess.email, String(Date.now())); return json_({ ok: true, seen: Date.now() });
+      case 'alertPrefs': if (req.email === false) props_().setProperty('NOALERT_' + sess.email, '1'); else props_().deleteProperty('NOALERT_' + sess.email); return json_({ ok: true, emailAlerts: req.email !== false });
+      case 'testDigest': requireOwner_(sess); return json_({ ok: true, sent: digest_(sess.name) });
+      case 'setEmailAlerts': requireSuper_(sess); props_().setProperty('EMAIL_ALERTS', req.on ? 'on' : 'off'); log_(sess.name, 'Website', '', '', 'Settings: email alerts ' + (req.on ? 'on' : 'off') + ' for everyone'); return json_({ ok: true });
+      // ---- Signed-in devices ----
+      case 'mySessions':   return json_({ ok: true, sessions: listSessions_(sess.email).map(function (x) { return { id: x.id, dev: x.dev, created: x.c, last: x.l, current: x.id === sess.sid }; }) });
+      case 'endSession':   endSession_(sess.email, String(req.id || '')); return json_({ ok: true });
+      case 'endOtherSessions': listSessions_(sess.email).forEach(function (x) { if (x.id !== sess.sid) endSession_(sess.email, x.id); }); log_(sess.name, 'Website', '', '', 'Signed out their other devices'); return json_({ ok: true });
       case 'changeMyPassword': if (!sess.acct) throw new Error('Shared role passwords are changed by the main owner in Settings.'); return json_(changeMyPassword_(req, sess));
       // ---- People page: owners ----
       case 'savePerson':   requireOwner_(sess); return json_(withLock_(function () { return savePerson_(req, sess); }));
@@ -846,7 +907,9 @@ function dataFor_(sess) {
     videos: edOnly ? d.videos.filter(function (v) { return PRE.indexOf(v.status) < 0; }) : d.videos,
     history: admin ? d.history : [],
     people: (function () { var own = owner ? ownPwSet_() : {}; if (owner) { var us = getUsers_(); Object.keys(us).forEach(function (k) { if (us[k].email) own[String(us[k].email).toLowerCase()] = true; }); } return getPeople_().map(function (p) { return owner ? { name: p.name, email: p.email, tags: p.tags, ownPw: !!(p.email && own[p.email]) } : { name: p.name, tags: p.tags }; }); })(),
-    lists: d.lists, logos: getLogos_() };
+    lists: d.lists, logos: getLogos_(),
+    inbox: inboxFor_(me.name), inboxSeen: Number(props_().getProperty('SEEN_' + me.email) || 0),
+    emailAlerts: props_().getProperty('NOALERT_' + me.email) !== '1', emailAlertsAll: props_().getProperty('EMAIL_ALERTS') !== 'off' };
 }
 function listsOut_() {
   var l = getLists_();
@@ -962,6 +1025,7 @@ function addVideo_(input, sess) {
   videosSheet_().appendRow(rowOf_(v, VIDEO_FIELDS));
   log_(me.name, 'Website', v.id, v.title, 'Created · stage ' + v.status);
   bustCache_();
+  alertsFor_(null, v, me.name);
   return { ok: true, video: v };
 }
 
@@ -1010,6 +1074,7 @@ function updateVideo_(id, changes, sess) {
   }
   bustCache_();
   delete v._row;
+  alertsFor_(before, v, me.name);
   return { ok: true, video: v, published: v.status === 'Published' };
 }
 
@@ -1296,6 +1361,7 @@ function sessionFor_(token) {
   if (sign_(parts[0]) !== parts[1]) return null;
   var s; try { s = JSON.parse(unb64u_(parts[0])); } catch (e) { return null; }
   if (Number(s.ep || 0) !== epoch_()) return null;
+  if (!s.sid || !touchSession_(s.email, s.sid)) return null;   // signed out, expired, or an old login
   var person = personByEmail_(s.email);
   if (s.acct) {
     var u = getUsers_()[s.acct]; if (!u) return null;
@@ -1316,7 +1382,7 @@ function requireOwner_(sess) { if (!sess || (sess.tags || []).indexOf('owner') <
 function requireAdmin_(sess) { if (!sess || !isAdminT_(sess.tags || [])) throw new Error('You don\'t have access to this.'); }
 
 function tooManyAttempts_(key) { return Number(CacheService.getScriptCache().get('fail_' + key) || 0) >= 8; }
-function noteFail_(key) { var c = CacheService.getScriptCache(); c.put('fail_' + key, String(Number(c.get('fail_' + key) || 0) + 1), 900); }
+function noteFail_(key) { var c = CacheService.getScriptCache(); c.put('fail_' + key, String(Number(c.get('fail_' + key) || 0) + 1), 900); c.put('gfail', String(Number(c.get('gfail') || 0) + 1), 900); }
 
 function login_(req) {
   var email = String(req.email || '').trim().toLowerCase();
@@ -1325,6 +1391,8 @@ function login_(req) {
   if (tooManyAttempts_(email)) throw new Error('Too many wrong attempts. Try again in 15 minutes.');
   var s = null;
   var users = getUsers_();
+  var ownLogin = !!ownPw_(email) || Object.keys(users).some(function (x) { return String(users[x].email || '').toLowerCase() === email; });
+  if (!ownLogin && Number(CacheService.getScriptCache().get('gfail') || 0) >= 60) throw new Error('Too many failed sign-ins on the tracker right now. Try again in 15 minutes, or sign in with your own password.');
   var k = Object.keys(users).filter(function (x) { return String(users[x].email || '').toLowerCase() === email; })[0];
   if (k && users[k].hash && hash_(pw, users[k].salt) === users[k].hash) {
     s = { acct: k, email: email, via: 'owner' };
@@ -1362,6 +1430,7 @@ function login_(req) {
   }
   if (!s) { noteFail_(email); return { ok: false, error: 'Wrong password', auth: false }; }
   try { CacheService.getScriptCache().remove('fail_' + email); } catch (e) {}
+  s.sid = newSession_(email, req.device);
   var token = issueToken_(s);
   var full = sessionFor_(token);
   if (!full) return { ok: false, error: 'Could not sign you in. Ask Saajid to check your tags.' };
@@ -1400,6 +1469,9 @@ function requestCode_(req) {
   if (c.get('cool_' + email)) return { ok: false, error: 'A code was just sent. Wait a minute before asking for another.' };
   var sent = Number(c.get('sent_' + email) || 0);
   if (sent >= 5) return { ok: false, error: 'Too many codes asked for. Try again in an hour.' };
+  var dayKey = 'CODES_' + today_(), dayN = Number(props_().getProperty(dayKey) || 0);
+  if (dayN >= 200) return { ok: false, error: 'The tracker has sent too many codes today. Try again tomorrow, or ask Saajid.' };
+  props_().setProperty(dayKey, String(dayN + 1));
   var code = String(Math.floor(100000 + Math.random() * 900000));
   var salt = newSalt_();
   c.put('code_' + email, JSON.stringify({ salt: salt, hash: hash_(code, salt), tries: 0 }), 900);
@@ -1447,7 +1519,7 @@ function setOwnPassword_(req) {
   else { var salt = newSalt_(); props_().setProperty('OWNPW_' + email, JSON.stringify({ salt: salt, hash: hash_(pw, salt) })); }
   try { c.remove('fail_' + email); } catch (e) {}
   log_(person ? person.name : getUsers_()[acct].name, 'Website', '', '', 'Set their own password');
-  return login_({ email: email, password: pw });
+  return login_({ email: email, password: pw, device: req.device });
 }
 function resetOwnPassword_(req, sess) {
   var name = String(req.name || '').trim().toLowerCase();
@@ -1534,6 +1606,120 @@ function renameFootageCut() {
   bustCache_();
   log_('Saajid', 'Sheet', '', '', 'Renamed the "Footage cut" stage to "Content cut" (' + n + ' videos moved over)');
 }
+
+// ---------------------------------------------------------------------
+// Signed-in devices. Each sign-in is a session kept per email (SESS_<email>).
+// A login ends after 7 days without use or 30 days in total, or when signed out.
+// ---------------------------------------------------------------------
+var SESSION_IDLE_MS = 7 * 864e5, SESSION_MAX_MS = 30 * 864e5;
+function listSessions_(email) { try { return JSON.parse(props_().getProperty('SESS_' + email) || '[]'); } catch (e) { return []; } }
+function saveSessions_(email, list) { if (list.length) props_().setProperty('SESS_' + email, JSON.stringify(list)); else props_().deleteProperty('SESS_' + email); }
+function newSession_(email, dev) {
+  var now = Date.now(), id = Utilities.getUuid().replace(/-/g, '').slice(0, 16);
+  var list = listSessions_(email).filter(function (x) { return now - x.l < SESSION_IDLE_MS && now - x.c < SESSION_MAX_MS; });
+  list.push({ id: id, dev: String(dev || 'Browser').slice(0, 60), c: now, l: now });
+  list.sort(function (a, b) { return b.l - a.l; });
+  saveSessions_(email, list.slice(0, 8));
+  return id;
+}
+function touchSession_(email, id) {
+  var c = CacheService.getScriptCache(), key = 'ss_' + id;
+  if (c.get(key)) return true;                           // seen in the last 10 minutes
+  var now = Date.now(), list = listSessions_(email), x = list.filter(function (y) { return y.id === id; })[0];
+  if (!x) return false;
+  if (now - x.l > SESSION_IDLE_MS || now - x.c > SESSION_MAX_MS) { saveSessions_(email, list.filter(function (y) { return y.id !== id; })); return false; }
+  x.l = now; saveSessions_(email, list); c.put(key, '1', 600);
+  return true;
+}
+function endSession_(email, id) {
+  saveSessions_(email, listSessions_(email).filter(function (x) { return x.id !== id; }));
+  try { CacheService.getScriptCache().remove('ss_' + id); } catch (e) {}
+}
+
+// ---------------------------------------------------------------------
+// Alerts: a note in the person's bell, plus an email (unless they or the owner turned emails off).
+// ---------------------------------------------------------------------
+var INBOX_HEADERS = ['Time', 'To', 'Video ID', 'Video', 'Kind', 'Message', 'By'];
+function inboxSheet_() {
+  var ss = ss_(), sh = ss.getSheetByName('Alerts');
+  if (sh) return sh;
+  sh = ss.insertSheet('Alerts', ss.getSheets().length);
+  sh.getRange(1, 1, 1, INBOX_HEADERS.length).setValues([INBOX_HEADERS]).setFontWeight('bold').setFontColor('#FFFFFF').setBackground('#1F2A44').setFontFamily('Arial');
+  sh.setFrozenRows(1); sh.hideSheet();
+  return sh;
+}
+function inboxAll_() {
+  var c = CacheService.getScriptCache(), raw = c.get('INBOX');
+  if (raw) { try { return JSON.parse(raw); } catch (e) {} }
+  var sh = ss_().getSheetByName('Alerts'), out = [];
+  if (sh && sh.getLastRow() > 1) {
+    var n = sh.getLastRow() - 1, start = Math.max(2, sh.getLastRow() - 799);
+    out = sh.getRange(start, 1, sh.getLastRow() - start + 1, INBOX_HEADERS.length).getValues().map(function (r) {
+      return { t: (r[0] instanceof Date || Object.prototype.toString.call(r[0]) === '[object Date]') ? r[0].getTime() : Number(new Date(r[0])), to: String(r[1]), id: String(r[2]), video: String(r[3]), kind: String(r[4]), text: String(r[5]), by: String(r[6]) };
+    });
+  }
+  try { c.put('INBOX', JSON.stringify(out), 300); } catch (e) {}
+  return out;
+}
+function inboxFor_(name) { return inboxAll_().filter(function (x) { return x.to === name; }).slice(-40).reverse(); }
+function notify_(to, v, kind, text, by, subject) {
+  to = String(to || '').trim();
+  if (!to || to === by) return;
+  try {
+    var sh = inboxSheet_();
+    sh.appendRow([new Date(), to, v.id || '', v.title || '', kind, text, by || '']);
+    var n = sh.getLastRow(); if (n > 3200) sh.deleteRows(2, n - 3000);
+    CacheService.getScriptCache().remove('INBOX');
+  } catch (e) {}
+  if (props_().getProperty('EMAIL_ALERTS') === 'off') return;
+  var p = getPeople_().filter(function (x) { return x.name === to; })[0];
+  if (!p || !p.email || props_().getProperty('NOALERT_' + p.email) === '1') return;
+  try {
+    MailApp.sendEmail({ to: p.email, name: 'YT4B Pipeline Tracker', subject: subject || text,
+      body: 'Hi ' + to.split(' ')[0] + ',\n\n' + text + (v.client ? '\nChannel: ' + v.client : '') + (v.dueDate ? '\nDue: ' + v.dueDate : '') +
+        '\n\nOpen the tracker: https://tracker.ytforbrands.com\n\nTo stop these emails, open the menu under your initials and turn off email alerts.' });
+  } catch (e) {}
+}
+function alertsFor_(before, v, by) {
+  var was = before || {};
+  var t = '"' + v.title + '"';
+  if (v.editor && v.editor !== was.editor) notify_(v.editor, v, 'assigned', 'You were assigned ' + t + (v.client ? ' (' + v.client + ')' : '') + (v.dueDate ? '. Due ' + v.dueDate + '.' : '.'), by, 'New video for you: ' + v.title);
+  if (v.status === was.status) return;
+  if (v.status === 'Revisions') notify_(v.editor, v, 'revisions', t + ' was sent back for revisions by ' + by + '.' + (v.blocker ? ' Note: ' + v.blocker : ''), by, 'Revisions needed: ' + v.title);
+  if (v.status === 'Handed over') notify_(v.podLead, v, 'handover', t + ' was handed over to you by ' + by + '. Assign an editor.', by, 'Handed over to you: ' + v.title);
+  if (v.status === 'Internal review') notify_(v.cm, v, 'review', t + ' is ready for internal review.', by, 'Ready for review: ' + v.title);
+  if (v.status === 'Approved') notify_(v.editor, v, 'approved', t + ' was approved. Nice work.', by, 'Approved: ' + v.title);
+}
+
+// The 9 AM summary for pod leads. setupDailySummary() turns it on (run once from the editor).
+function dailyDigest() { return digest_(''); }   // run by the 9 AM trigger
+function digest_(onlyTo) {
+  if (props_().getProperty('EMAIL_ALERTS') === 'off' && !onlyTo) return 0;
+  var today = today_(), vids = getVideos_(), sent = 0;
+  var open = vids.filter(function (v) { return POST.indexOf(v.status) >= 0 && ['Uploaded', 'Published', 'On hold'].indexOf(v.status) < 0; });
+  getPeople_().forEach(function (p) {
+    if (onlyTo ? p.name !== onlyTo : (p.tags.indexOf('podlead') < 0 || !p.email || props_().getProperty('NOALERT_' + p.email) === '1')) return;
+    if (!p.email) return;
+    var mine = onlyTo ? open : open.filter(function (v) { return v.podLead === p.name; });
+    var late = mine.filter(function (v) { return v.dueDate && v.dueDate < today; });
+    var dueToday = mine.filter(function (v) { return v.dueDate === today; });
+    var review = mine.filter(function (v) { return v.status === 'Internal review' || v.status === 'Client review'; });
+    if (!late.length && !dueToday.length && !review.length && !onlyTo) return;
+    var line = function (v) { return '- ' + v.title + ' (' + (v.editor || 'no editor') + ', ' + v.status + (v.dueDate ? ', due ' + v.dueDate : '') + ')'; };
+    var body = 'Hi ' + p.name.split(' ')[0] + ',\n\nYour pod today (' + today + '):\n\n' +
+      'Overdue: ' + late.length + '\n' + late.map(line).join('\n') + (late.length ? '\n' : '') +
+      '\nDue today: ' + dueToday.length + '\n' + dueToday.map(line).join('\n') + (dueToday.length ? '\n' : '') +
+      '\nIn review: ' + review.length + '\n' + review.map(line).join('\n') +
+      '\n\nOpen the tracker: https://tracker.ytforbrands.com';
+    try { MailApp.sendEmail({ to: p.email, name: 'YT4B Pipeline Tracker', subject: 'Your pod today: ' + late.length + ' overdue, ' + dueToday.length + ' due today', body: body }); sent++; } catch (e) {}
+  });
+  return sent;
+}
+function setupDailySummary() {
+  ScriptApp.getProjectTriggers().forEach(function (t) { if (t.getHandlerFunction() === 'dailyDigest') ScriptApp.deleteTrigger(t); });
+  ScriptApp.newTrigger('dailyDigest').timeBased().atHour(9).everyDays(1).inTimezone('Asia/Kolkata').create();
+  Logger.log('Daily summary will be emailed to pod leads at about 9 AM every day.');
+}
 function qcKey_() {
   var k = props_().getProperty('QC_KEY');
   if (!k) { k = 'qc-' + Utilities.getUuid().replace(/-/g, '').slice(0, 20); props_().setProperty('QC_KEY', k); }
@@ -1615,7 +1801,7 @@ function selfTest() {
 // Everything below runs the same Apps Script code as the live tracker (Pipeline.gs), with stand-ins for
 // Google's services. The pretend sheet is kept in this browser only. Nothing touches the live tracker.
 window.DEMO = (function () {
-  const KEY = "ytb_demo_v2";
+  const KEY = "ytb_demo_v3";
   // ---- tiny SHA-256 / HMAC (the backend hashes passwords and signs tokens)
   function sha256(bytes) {
     const K = [0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da, 0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967, 0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85, 0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070, 0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3, 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2];
@@ -1676,7 +1862,7 @@ window.DEMO = (function () {
     LockService: { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) },
     ContentService: { MimeType: { JSON: "json" }, createTextOutput: t => ({ t, setMimeType() { return this; }, getContent() { return this.t; } }) },
     Session: { getActiveUser: () => ({ getEmail: () => "" }) }, Logger: { log() {} },
-    MailApp: { getRemainingDailyQuota: () => 100, sendEmail: o => { const c = (String(o.subject).match(/\d{6}/) || [""])[0]; setTimeout(() => { try { toast("Demo: no real email is sent. The code would be " + c); } catch (e) {} }, 1400); } },
+    MailApp: { getRemainingDailyQuota: () => 100, sendEmail: o => { const c = (String(o.subject).match(/\d{6}/) || [""])[0]; setTimeout(() => { try { toast(c ? "Demo: no real email is sent. The code would be " + c : "Demo: an email would go to " + o.to + ": “" + o.subject + "”"); } catch (e) {} }, 1400); } },
     Utilities: {
       DigestAlgorithm: { SHA_256: 1 }, Charset: { UTF_8: 1 },
       formatDate: (d, tz, f) => { const t = new Date(d.getTime() + 330 * 60000); return f.replace("yyyy", t.getUTCFullYear()).replace("MM", pad(t.getUTCMonth() + 1)).replace("dd", pad(t.getUTCDate())).replace("'T'", "T").replace("HH", pad(t.getUTCHours())).replace("mm", pad(t.getUTCMinutes())); },
@@ -1689,7 +1875,7 @@ window.DEMO = (function () {
     },
   };
   const names = Object.keys(G);
-  const exportsList = ["doPost", "issueToken_", "pwVer_", "videosSheet_", "historySheet_", "peopleSheet_", "activitySheet_", "writePeople_", "rowOf_", "historyRow_", "setRolePassword_", "hash_", "VIDEO_FIELDS", "HISTORY_FIELDS", "VIDEO_HEADERS", "HISTORY_HEADERS", "LOG_HEADERS", "bustCache_", "getPeople_", "ownVer_", "readTable_"];
+  const exportsList = ["doPost", "issueToken_", "pwVer_", "videosSheet_", "historySheet_", "peopleSheet_", "activitySheet_", "writePeople_", "rowOf_", "historyRow_", "setRolePassword_", "hash_", "VIDEO_FIELDS", "HISTORY_FIELDS", "VIDEO_HEADERS", "HISTORY_HEADERS", "LOG_HEADERS", "bustCache_", "getPeople_", "ownVer_", "readTable_", "newSession_", "inboxSheet_"];
   const GAS = new Function(...names, document.getElementById("gas-src").textContent + "\nreturn {" + exportsList.join(",") + "};")(...names.map(n => G[n]));
 
   // ---- save / load the pretend sheet in this browser
@@ -1772,6 +1958,17 @@ window.DEMO = (function () {
       if (v.frameLink && rnd() < .4) extra.push([ri(30, 60 * 24 * 4), v.editor || who, v.id, v.title, "Frame.io link: — → " + v.frameLink]);
     });
     extra.sort((a, b) => b[0] - a[0]).forEach(([m, who, vid, title, what]) => act.appendRow([new Date(now - m * 60000), who, "Website", vid, title, what]));
+    // sample alerts for the bell
+    const inbox = GAS.inboxSheet_(), al = [];
+    rows.forEach(v => {
+      const T = '"' + v.title + '"';
+      if (v.editor && ["Not started", "Editing", "Sound design"].includes(v.status)) al.push([ri(30, 60 * 30), v.editor, v, "assigned", "You were assigned " + T + " (" + v.client + ")" + (v.dueDate ? ". Due " + v.dueDate + "." : "."), v.podLead || "Siddhant"]);
+      if (v.status === "Revisions") al.push([ri(20, 60 * 20), v.editor, v, "revisions", T + " was sent back for revisions by " + v.cm + ".", v.cm]);
+      if (v.status === "Handed over" && v.podLead) al.push([ri(20, 60 * 24), v.podLead, v, "handover", T + " was handed over to you by " + v.cm + ". Assign an editor.", v.cm]);
+      if (v.status === "Internal review") al.push([ri(10, 60 * 12), v.cm, v, "review", T + " is ready for internal review.", v.editor]);
+      if (v.status === "Approved" && v.editor) al.push([ri(60, 60 * 40), v.editor, v, "approved", T + " was approved. Nice work.", v.cm]);
+    });
+    al.sort((a, b) => b[0] - a[0]).forEach(([m, to, v, kind, text, by]) => to && inbox.appendRow([new Date(now - m * 60000), to, v.id, v.title, kind, text, by || ""]));
     persist();
   }
   let ready = false;
@@ -1788,11 +1985,11 @@ window.DEMO = (function () {
   // Sign in as any person, the way their real sign-in would (best role for their tags)
   function tokenFor(p) {
     init();
-    if (p.tags.includes("owner")) return GAS.issueToken_({ acct: "saajid", email: p.email, via: "owner" });
+    if (p.tags.includes("owner")) return GAS.issueToken_({ acct: "saajid", email: p.email, via: "owner", sid: GAS.newSession_(p.email, "Demo browser") });
     const via = ["admin", "podlead", "cm", "editor"].find(t => p.tags.includes(t));
     const own = GAS.ownVer_(p.email);
-    if (own) return GAS.issueToken_({ email: p.email, via: "self", pv: own });
-    return GAS.issueToken_({ email: p.email, via, pv: GAS.pwVer_(via) });
+    if (own) return GAS.issueToken_({ email: p.email, via: "self", pv: own, sid: GAS.newSession_(p.email, "Demo browser") });
+    return GAS.issueToken_({ email: p.email, via, pv: GAS.pwVer_(via), sid: GAS.newSession_(p.email, "Demo browser") });
   }
   function sheetData() {
     init();
@@ -2022,6 +2219,7 @@ async function api(action, payload = {}) {
 function applyData(d) {
   D = { people: d.people || [], videos: d.videos || [], history: d.history || [] };
   S.me = d.me || S.me; S.lists = d.lists || S.lists; S.logos = d.logos || S.logos || {};
+  if (d.inbox) { S.inbox = d.inbox; S.inboxSeen = d.inboxSeen || 0; S.emailAlerts = d.emailAlerts !== false; S.emailAlertsAll = d.emailAlertsAll !== false; }
 }
 function cacheNow() { try { store.set("ytb_demo_cache", JSON.stringify({ people: D.people, videos: D.videos, history: D.history, me: S.me, lists: S.lists, logos: S.logos })); } catch (e) {} }
 async function load(silent) {
@@ -2069,7 +2267,7 @@ $("#loginForm").onsubmit = async e => {
   $("#loginErr").textContent = ""; $("#loginBtn").disabled = true; $("#loginBtn").textContent = "Signing in…";
   try {
     let r;
-    try { r = await api("login", { email, password: $("#lpw").value, claimName: $("#lclaim") ? $("#lclaim").value : "" }); }
+    try { r = await api("login", { email, password: $("#lpw").value, claimName: $("#lclaim") ? $("#lclaim").value : "", device: deviceName() }); }
     catch (err) {
       if (err.data && err.data.needName) { showClaim(err.data); $("#loginBtn").disabled = false; $("#loginBtn").textContent = "Sign in"; return; }
       if (err.data && err.data.needSetup) { $("#loginBtn").disabled = false; $("#loginBtn").textContent = "Sign in"; openOwnPw(email, true, true); return; }
@@ -2084,10 +2282,11 @@ $("#loginForm").onsubmit = async e => {
 
 // ---------------------------------------------------------------- header
 $("#refreshBtn").onclick = async () => { if (await load()) toast("Up to date"); };
-$("#meBtn").onclick = e => { e.stopPropagation(); $("#meMenu").classList.toggle("hidden"); };
+$("#meBtn").onclick = e => { e.stopPropagation(); $("#bellMenu").classList.add("hidden"); $("#meMenu").classList.toggle("hidden"); };
 document.addEventListener("click", e => { if (!$("#meMenu").contains(e.target)) $("#meMenu").classList.add("hidden"); });
 function views() {
-  const v = [["board", "Board"], ["table", "Table"]];
+  const v = [["board", "Board"], ["table", "Table"], ["calendar", "Calendar"]];
+  if (isAdmin() || isCM() || isPL()) v.push(["workload", "Workload"]);
   if (isAdmin()) v.push(["history", "History"], ["activity", "Activity"], ["assistant", "Assistant"]);
   if (isOwner()) v.push(["people", "People"]);
   if (S.me && S.me.super) v.push(["settings", "Settings"]);
@@ -2099,7 +2298,11 @@ function renderHeader() {
   $("#nav").querySelectorAll("button").forEach(b => b.onclick = () => go(b.dataset.v));
   $("#meAv").textContent = initials(S.me.name);
   $("#meMenu").innerHTML = `<div class="who"><b>${esc(S.me.name)}</b><div class="note" style="margin-top:2px">${esc(S.me.email)}</div><div class="pls" style="margin-top:6px">${S.me.tags.map(pill).join("")}</div></div>
+    <button id="mAlerts">Email alerts: ${S.emailAlerts === false ? "Off" : "On"}</button><button id="mDev">Signed-in devices</button>
     <button id="mPw">${S.me.ownPw ? "Change my password" : "Set my own password"}</button><button id="mOut">Sign out</button>`;
+  $("#mAlerts").onclick = async () => { const on = S.emailAlerts === false; try { await api("alertPrefs", { email: on }); S.emailAlerts = on; toast(on ? "Email alerts turned on" : "Email alerts turned off. You'll still see them in the bell."); renderHeader(); } catch (e) { toast(e.message, true); } };
+  $("#mDev").onclick = () => { $("#meMenu").classList.add("hidden"); openDevices(); };
+  renderBell(!$("#bellMenu").classList.contains("hidden"));
   $("#mPw").onclick = () => { $("#meMenu").classList.add("hidden"); S.me.account ? openChangePw() : openOwnPw(S.me.email, false); };
   renderPwNudge();
   $("#mOut").onclick = () => logout();
@@ -2118,6 +2321,8 @@ function render() {
   if (S.view === "settings") { $("#toolbar").classList.add("hidden"); if (!S.settings) api("settings").then(r => { S.settings = r; if (S.view === "settings") renderSettings(); }).catch(e => toast(e.message, true)); return renderSettings(); }
   if (S.view === "sheet") { $("#toolbar").classList.add("hidden"); return renderSheet(); }
   if (S.view === "assistant") { $("#toolbar").classList.add("hidden"); return renderAssistantPage(); }
+  if (S.view === "calendar") { $("#toolbar").classList.add("hidden"); return renderCalendar(); }
+  if (S.view === "workload") { $("#toolbar").classList.add("hidden"); return renderWorkload(); }
   renderToolbar();
   if (S.view === "table") renderTable(); else renderBoard();
 }
@@ -2674,7 +2879,7 @@ function openOwnPw(email, fromLogin, firstTime) {
     }
     q("#opE").textContent = ""; busy(true, "Saving…");
     try {
-      const r = await api("setOwnPassword", body);
+      const r = await api("setOwnPassword", { ...body, device: deviceName() });
       close();
       store.set("ytb_email", email); S.token = r.token; store.set("ytb_demo_token", r.token);
       applyData(r); cacheNow();
@@ -2691,6 +2896,144 @@ function openOwnPw(email, fromLogin, firstTime) {
   stepOne();
 }
 if ($("#lForgot")) $("#lForgot").onclick = () => openOwnPw($("#lemail").value.trim().toLowerCase(), true);
+
+
+// ---------------------------------------------------------------- alerts bell (27 Nov 2026)
+const BELL_KIND = { assigned: ["+", "var(--accentSoft)", "var(--accent)"], revisions: ["↺", "var(--redBg)", "var(--red)"], handover: ["→", "var(--orangeBg)", "var(--orange)"], review: ["✓", "var(--surface2)", "var(--text)"], approved: ["★", "var(--greenBg)", "var(--green)"] };
+function ago(t) { const s = (Date.now() - t) / 1000; if (s < 60) return "just now"; if (s < 3600) return Math.floor(s / 60) + " min ago"; if (s < 86400) return Math.floor(s / 3600) + " h ago"; const d = Math.floor(s / 86400); return d === 1 ? "yesterday" : d + " days ago"; }
+function renderBell(open) {
+  const items = S.inbox || [], seen = S.inboxSeenShown != null ? S.inboxSeenShown : (S.inboxSeen || 0);
+  const unread = items.filter(x => x.t > (S.inboxSeen || 0)).length;
+  $("#bellN").textContent = unread > 9 ? "9+" : unread; $("#bellN").classList.toggle("hidden", !unread);
+  $("#bellBtn").setAttribute("aria-label", unread ? `Alerts, ${unread} new` : "Alerts");
+  if (!open) return;
+  $("#bellMenu").innerHTML = `<div class="bh"><span>Alerts</span><span class="note">${S.emailAlerts === false ? "Email alerts off" : "Also sent to your email"}</span></div>` +
+    (items.length ? items.map((x, i) => { const k = BELL_KIND[x.kind] || ["•", "var(--surface2)", "var(--text)"];
+      return `<button class="bi ${x.t > seen ? "new" : ""}" data-bi="${i}"><span class="bk" style="background:${k[1]};color:${k[2]}" aria-hidden="true">${k[0]}</span><span><div class="bt">${esc(x.text)}</div><div class="bm">${ago(x.t)}${x.by ? " · " + esc(x.by) : ""}</div></span></button>`; }).join("")
+      : `<div class="pad note" style="padding:22px 14px">Nothing yet. You'll see a note here when a video is assigned to you, handed over, sent back or ready for review.</div>`);
+  $("#bellMenu").querySelectorAll("[data-bi]").forEach(b => b.onclick = () => {
+    const x = items[+b.dataset.bi], v = D.videos.find(y => y.id === x.id);
+    $("#bellMenu").classList.add("hidden");
+    if (v) openVideo(v); else toast("That video isn't on the board any more (published or deleted).");
+  });
+}
+$("#bellBtn").onclick = async e => {
+  e.stopPropagation(); $("#meMenu").classList.add("hidden");
+  const m = $("#bellMenu"); m.classList.toggle("hidden");
+  if (m.classList.contains("hidden")) { S.inboxSeenShown = null; return; }
+  S.inboxSeenShown = S.inboxSeen || 0; renderBell(true);
+  if ((S.inbox || []).some(x => x.t > (S.inboxSeen || 0))) { try { const r = await api("inboxSeen"); S.inboxSeen = r.seen; renderBell(false); } catch (err) {} }
+};
+document.addEventListener("click", e => { if (!$("#bellMenu").contains(e.target) && e.target !== $("#bellBtn")) { $("#bellMenu").classList.add("hidden"); S.inboxSeenShown = null; } });
+function deviceName() {
+  const u = navigator.userAgent;
+  const b = /Edg\//.test(u) ? "Edge" : /OPR\//.test(u) ? "Opera" : /Chrome\//.test(u) ? "Chrome" : /Firefox\//.test(u) ? "Firefox" : /Safari\//.test(u) ? "Safari" : "Browser";
+  const o = /iPhone/.test(u) ? "iPhone" : /iPad/.test(u) ? "iPad" : /Android/.test(u) ? "Android" : /Mac OS X/.test(u) ? "Mac" : /Windows/.test(u) ? "Windows" : /Linux/.test(u) ? "Linux" : "";
+  return b + (o ? " on " + o : "");
+}
+async function openDevices() {
+  const root = document.createElement("div");
+  root.innerHTML = `<div class="backdrop"><div class="modal sm" role="dialog" aria-label="Signed-in devices"><div class="modal-h"><h3>Signed-in devices</h3><button class="x" aria-label="Close">×</button></div>
+    <div class="tm-body" id="devBody"><div class="loading" style="padding:30px">Loading…</div></div>
+    <div class="modal-f"><span class="note" style="flex:1">You're signed out after 7 days of not using the tracker, and after 30 days in any case.</span><button class="btn" data-c>Close</button></div></div></div>`;
+  document.body.appendChild(root);
+  const close = () => root.remove(); root.querySelector(".x").onclick = close; root.querySelector("[data-c]").onclick = close;
+  const draw = async () => {
+    let r; try { r = await api("mySessions"); } catch (e) { root.querySelector("#devBody").innerHTML = `<div class="err">${esc(e.message)}</div>`; return; }
+    const L = r.sessions.sort((a, b) => (b.current - a.current) || (b.last - a.last));
+    root.querySelector("#devBody").innerHTML = L.map(x => `<div class="dev-row"><div style="flex:1"><b>${esc(x.dev)}</b><div class="note">${x.current ? "This device" : "Last used " + ago(x.last)} · signed in ${new Date(x.created).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</div></div>
+      ${x.current ? `<span class="tag ok">This device</span>` : `<button class="btn small" data-end="${esc(x.id)}">Sign out</button>`}</div>`).join("") +
+      (L.length > 1 ? `<div class="row-form" style="margin-top:12px"><button class="btn danger" id="endOthers">Sign out all other devices</button></div>` : "");
+    root.querySelectorAll("[data-end]").forEach(b => b.onclick = async () => { try { await api("endSession", { id: b.dataset.end }); toast("Signed out that device"); draw(); } catch (e) { toast(e.message, true); } });
+    if (root.querySelector("#endOthers")) root.querySelector("#endOthers").onclick = async () => { try { await api("endOtherSessions"); toast("Signed out your other devices"); draw(); } catch (e) { toast(e.message, true); } };
+  };
+  draw();
+}
+
+// ---------------------------------------------------------------- Calendar (27 Nov 2026)
+function calEvents() {
+  const ev = [], c = S.cal;
+  const fmtOk = v => c.fmt === "all" || (c.fmt === "short") === isShort(v);
+  D.videos.filter(canSeeVideo).forEach(v => {
+    if (c.ch && v.client !== c.ch) return; if (!fmtOk(v)) return;
+    if (v.dueDate && !isDone(v)) ev.push({ d: v.dueDate, v, kind: "due", late: v.dueDate < TODAY });
+    if (v.publishedDate) ev.push({ d: v.publishedDate, v, kind: "pub" });
+    else if (v.status === "Uploaded" && v.uploadedDate) ev.push({ d: v.uploadedDate, v, kind: "up" });
+  });
+  (D.history || []).forEach(h => { if (!h.publishedDate) return; if (c.ch && h.client !== c.ch) return; if (!fmtOk(h)) return; ev.push({ d: h.publishedDate, v: h, kind: "pub", hist: true }); });
+  return ev;
+}
+function renderCalendar() {
+  if (!S.cal) { const t = new Date(TODAY + "T00:00:00"); S.cal = { y: t.getFullYear(), m: t.getMonth(), ch: "", fmt: "all" }; }
+  const c = S.cal, first = new Date(c.y, c.m, 1), start = new Date(first); start.setDate(1 - ((first.getDay() + 6) % 7));
+  const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const by = {}; calEvents().forEach(e => (by[e.d] = by[e.d] || []).push(e));
+  Object.values(by).forEach(L => L.sort((a, b) => (a.kind === "due" ? 0 : 1) - (b.kind === "due" ? 0 : 1)));
+  const evHtml = (e, i) => `<button class="ev ${isShort(e.v) ? "short" : ""} ${e.kind !== "due" ? "pub" : ""} ${e.late ? "late" : ""}" data-ev="${esc(e.v.id)}" data-hist="${e.hist ? 1 : ""}" title="${esc(e.v.title)} · ${esc(e.v.client || "")} · ${e.kind === "due" ? "due" + (e.late ? " (overdue)" : "") : e.kind === "up" ? "uploaded" : "published"}">${e.kind !== "due" ? "▶ " : ""}${esc(e.v.title)}</button>`;
+  const monthName = first.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+  const chans = channelNames();
+  const head = `<div class="cal-h"><h1 class="grot">${monthName}</h1>
+    <button class="btn small" id="calPrev" aria-label="Previous month">‹</button><button class="btn small" id="calToday">Today</button><button class="btn small" id="calNext" aria-label="Next month">›</button>
+    <span class="spacer" style="flex:1"></span>
+    <select class="input" id="calCh" aria-label="Channel" style="max-width:200px"><option value="">All channels</option>${chans.map(n => `<option ${n === c.ch ? "selected" : ""}>${esc(n)}</option>`).join("")}</select>
+    <div class="sectsw" role="tablist" aria-label="Format">${[["all", "All"], ["long", "Long-form"], ["short", "Shorts"]].map(([k, l]) => `<button data-cf="${k}" class="${c.fmt === k ? "on" : ""}">${l}</button>`).join("")}</div></div>`;
+  const key = `<div class="cal-key"><span><i style="background:var(--longBg,#e0e7ff)"></i>Long-form due</span><span><i style="background:var(--shortBg,#fce7f3)"></i>Shorts due</span><span><i style="background:var(--greenBg)"></i>Published / uploaded</span><span><i style="background:var(--surface);box-shadow:inset 3px 0 0 var(--red)"></i>Overdue</span></div>`;
+  let body;
+  if (window.innerWidth <= 700) {
+    const days = Object.keys(by).filter(d => d.slice(0, 7) === iso(first).slice(0, 7)).sort();
+    body = `<div class="panel agenda">${days.length ? days.map(d => `<div class="ad"><b>${new Date(d + "T00:00:00").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}${d === TODAY ? " · today" : ""}</b>${by[d].map(evHtml).join("")}</div>`).join("") : `<div class="pad note">Nothing due or published this month.</div>`}</div>`;
+  } else {
+    let cells = "";
+    for (let i = 0; i < 42; i++) {
+      const d = new Date(start); d.setDate(start.getDate() + i); const k = iso(d), L = by[k] || [];
+      if (i >= 35 && d.getMonth() !== c.m) break;
+      cells += `<div class="dc ${d.getMonth() !== c.m ? "out" : ""} ${k === TODAY ? "today" : ""}"><span class="dn">${d.getDate()}</span>${L.slice(0, 4).map(evHtml).join("")}${L.length > 4 ? `<button class="more" data-more="${k}">+${L.length - 4} more</button>` : ""}</div>`;
+    }
+    body = `<div class="cal">${["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(d => `<div class="dh">${d}</div>`).join("")}${cells}</div>`;
+  }
+  $("#view").innerHTML = head + body + key;
+  const move = n => { const d = new Date(c.y, c.m + n, 1); c.y = d.getFullYear(); c.m = d.getMonth(); renderCalendar(); };
+  $("#calPrev").onclick = () => move(-1); $("#calNext").onclick = () => move(1);
+  $("#calToday").onclick = () => { const t = new Date(TODAY + "T00:00:00"); c.y = t.getFullYear(); c.m = t.getMonth(); renderCalendar(); };
+  $("#calCh").onchange = e => { c.ch = e.target.value; renderCalendar(); };
+  document.querySelectorAll("[data-cf]").forEach(b => b.onclick = () => { c.fmt = b.dataset.cf; renderCalendar(); });
+  document.querySelectorAll("[data-ev]").forEach(b => b.onclick = () => {
+    const v = D.videos.find(x => x.id === b.dataset.ev);
+    if (v) openVideo(v); else toast("Published: " + b.title.split(" · ")[0] + ". Its full record is on the History page.");
+  });
+  document.querySelectorAll("[data-more]").forEach(b => b.onclick = () => { const L = by[b.dataset.more]; toast(L.map(e => e.v.title).join(" · ")); });
+}
+
+// ---------------------------------------------------------------- Editor workload (27 Nov 2026)
+const WL_ACTIVE = ["Not started", "Editing", "Sound design", "Revisions"], WL_WAIT = ["Internal review", "Client review"];
+function renderWorkload() {
+  if (!S.wl) S.wl = { pl: "", fmt: "all" };
+  const W = S.wl;
+  const open = D.videos.filter(v => (WL_ACTIVE.includes(v.status) || WL_WAIT.includes(v.status)) && (!W.pl || v.podLead === W.pl) && (W.fmt === "all" || (W.fmt === "short") === isShort(v)));
+  const editors = [...new Set(D.people.filter(p => p.tags.includes("editor")).map(p => p.name).concat(open.map(v => v.editor).filter(Boolean)))];
+  const rows = editors.map(n => {
+    const mine = open.filter(v => v.editor === n).sort((a, b) => (a.dueDate || "9") < (b.dueDate || "9") ? -1 : 1);
+    const also = open.filter(v => v.editor !== n && String(v.coEditors || "").split(",").map(s => s.trim()).includes(n));
+    const active = mine.filter(v => WL_ACTIVE.includes(v.status)).length;
+    const units = mine.filter(v => WL_ACTIVE.includes(v.status)).reduce((s, v) => s + (isShort(v) ? .34 : 1), 0);
+    const lv = units >= 4 ? ["Full", "var(--red)"] : units >= 2.5 ? ["Busy", "var(--orange)"] : units > 0 ? ["Has room", "var(--green)"] : ["Free", "var(--green)"];
+    return { n, mine, also, active, units, lv, late: mine.filter(isOverdue).length };
+  }).sort((a, b) => b.units - a.units || a.n.localeCompare(b.n));
+  const pls = D.people.filter(p => p.tags.includes("podlead")).map(p => p.name).sort();
+  const chip = (v, co) => `<button class="wl-chip ${WL_WAIT.includes(v.status) ? "wait" : ""} ${isOverdue(v) ? "late" : ""}" data-wv="${esc(v.id)}" title="${esc(v.title)} · ${esc(v.status)}"><span class="t">${co ? "Helping: " : ""}${esc(v.title)}</span><span class="m"><span style="width:7px;height:7px;border-radius:50%;background:${SC[v.status] || "#999"}"></span>${esc(v.status)}${v.dueDate ? ` · <b>${isOverdue(v) ? "late, " : ""}due ${fmtDate(v.dueDate)}</b>` : ""}${isShort(v) ? " · Short" : ""}</span></button>`;
+  const free = rows.filter(r => !r.active).length;
+  $("#view").innerHTML = `<div class="cal-h"><h1 class="grot">Editor workload</h1><span class="note">${free} of ${rows.length} editors have nothing in editing right now</span><span class="spacer" style="flex:1"></span>
+      <select class="input" id="wlPl" aria-label="Pod lead" style="max-width:220px"><option value="">All pod leads</option>${pls.map(n => `<option ${n === W.pl ? "selected" : ""}>${esc(n)}</option>`).join("")}</select>
+      <div class="sectsw" role="tablist" aria-label="Format">${[["all", "All"], ["long", "Long-form"], ["short", "Shorts"]].map(([k, l]) => `<button data-wf="${k}" class="${W.fmt === k ? "on" : ""}">${l}</button>`).join("")}</div></div>
+    <div class="panel"><div class="wl-row wl-head" style="border-top:0;background:var(--surface2);font-size:11.5px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;padding-top:9px;padding-bottom:9px"><span>Editor</span><span>Videos (dashed = waiting for review)</span><span style="text-align:right">Load</span></div>
+      ${rows.map(r => `<div class="wl-row"><div class="who"><span class="av" style="width:30px;height:30px;font-size:11px">${esc(initials(r.n))}</span><span style="min-width:0;overflow:hidden;text-overflow:ellipsis">${esc(r.n)}</span></div>
+        <div class="wl-chips">${r.mine.length || r.also.length ? r.mine.map(v => chip(v)).join("") + r.also.map(v => chip(v, true)).join("") : `<span class="note">Nothing assigned</span>`}</div>
+        <div><div class="wl-load" style="color:${r.lv[1]}">${r.lv[0]}${r.late ? ` · ${r.late} late` : ""}</div><div class="wl-bar"><span style="width:${Math.min(100, r.units / 4 * 100)}%;background:${r.lv[1]}"></span></div></div></div>`).join("")}
+    </div><div class="cal-key">Load counts videos in Not started, Editing, Sound design and Revisions. A Short counts as a third of a long video. Full = 4 or more long videos.</div>`;
+  $("#wlPl").onchange = e => { W.pl = e.target.value; renderWorkload(); };
+  document.querySelectorAll("[data-wf]").forEach(b => b.onclick = () => { W.fmt = b.dataset.wf; renderWorkload(); });
+  document.querySelectorAll("[data-wv]").forEach(b => b.onclick = () => { const v = D.videos.find(x => x.id === b.dataset.wv); if (v) openVideo(v); });
+}
 
 let toastTimer;
 function toast(msg, bad) {
@@ -2741,7 +3084,11 @@ function renderSettings() {
         </div>
         <div class="panel-h" style="border-top:1px solid var(--line)">Security</div>
         <div class="pad stack"><div class="note">Signs out everyone who is signed in right now, including you.</div>
-          <div class="row-form"><button class="btn danger" id="signOutAll">Sign everyone out</button></div></div></div>
+          <div class="row-form"><button class="btn danger" id="signOutAll">Sign everyone out</button></div></div>
+        <div class="panel-h" style="border-top:1px solid var(--line)">Email alerts</div>
+        <div class="pad stack"><label style="display:flex;gap:8px;align-items:center;cursor:pointer"><input type="checkbox" id="alertsAll" ${S.emailAlertsAll === false ? "" : "checked"}> Send alert emails and the 9 AM pod lead summary</label>
+          <div class="note">The bell in the tracker always works. Each person can also turn their own emails off from their menu.</div>
+          <div class="row-form"><button class="btn" id="testDigest">Email me a sample morning summary</button></div></div></div>
 
       <div class="panel full"><div class="panel-h">Channels &amp; formats <small>the Channel dropdown, which formats each channel makes, and its logo</small></div>
         <div class="tbl-wrap"><table><thead><tr><th style="cursor:default">Channel</th><th style="cursor:default">Logo</th>${formats.map(f => `<th style="cursor:default">${esc(f)}</th>`).join("")}<th style="cursor:default"></th></tr></thead><tbody>
@@ -2781,6 +3128,8 @@ function renderSettings() {
     if (!b.classList.contains("confirm")) { b.classList.add("confirm"); b.textContent = "Click again to replace the key"; return; }
     try { const r = await api("rotateQcKey"); st.qcKey = r.qcKey; toast("New QC key made"); redraw(); } catch (err) { toast(err.message, true); }
   };
+  $("#alertsAll").onchange = async e => { try { await api("setEmailAlerts", { on: e.target.checked }); S.emailAlertsAll = e.target.checked; toast(e.target.checked ? "Alert emails are on" : "Alert emails are off for everyone"); } catch (err) { toast(err.message, true); e.target.checked = !e.target.checked; } };
+  $("#testDigest").onclick = async () => { try { const r = await api("testDigest"); toast(r.sent ? "Sent. Check your inbox." : "No email address on your People row."); } catch (e) { toast(e.message, true); } };
   $("#signOutAll").onclick = async () => {
     const b = $("#signOutAll");
     if (!b.classList.contains("confirm")) { b.classList.add("confirm"); b.textContent = "Click again: sign everyone out"; return; }
